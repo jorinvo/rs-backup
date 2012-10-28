@@ -34,3 +34,15 @@
 .leave-section {
   margin-top: 50px;
 }
+
+#success, #error {
+  display: none;
+}
+
+#backup-link {
+  display: none;
+}
+
+.alerts {
+  margin-top: 20px;
+}
