@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+        <title></title>
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width">
+
+        <link rel="stylesheet" href="css/bootstrap.min.css">
+        <link rel="stylesheet" href="css/main.css">
+    </head>
+    <body>
+        <div class="navbar navbar-static-top navbar-inverse">
+          <div class="navbar-inner">
+            <div class="container-fluid">
+                <a class="brand" href="#">rs backup</a>
+                <ul class="nav">
+                  <li class="active"><a href="#">Intro</a></li>
+                  <li><a href="#">Backup</a></li>
+                </ul>
+                <div id="remotestorage-connect"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="frame">
+        <div class="container">
+            <div class="intro">
+                <div class="span12">
+                    <div class="page-header">
+                        <h1>be happy</h1>
+                    </div>
+                    <div class="hero-unit">
+                        <h2>bla  bla</h2>
+                        <p>never worry again about losing your data. get automatic backups of your remoteStorage data right into your mailbox.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="backup hidden">
+                <div class="span12">
+                    <div class="page-header">
+                        <h1>Remotestorage Backup</h1>
+                    </div>
+                    <div class="row">
+                        <form class="form-inline span6">
+                            <legend>Settings</legend>
+                            <input type="text" id="mail" placeholder="E-Mail">
+                            <div class="btn-group">
+                              <a class="btn dropdown-toggle" data-toggle="dropdown" href="#">
+                                select interval
+                                <span class="caret"></span>
+                              </a>
+                              <ul class="dropdown-menu">
+                                <li class="active"><a href="">every hour</a></li>
+                                <li><a href="">every 4 hours</a></li>
+                                <li><a href="">2 times a day</a></li>
+                                <li><a href="">daily</a></li>
+                                <li><a href="">every second day</a></li>
+                                <li><a href="">2 times a week</a></li>
+                                <li><a href="">weekly</a></li>
+                                <li><a href="">every 2 weeks</a></li>
+                              </ul>
+                            </div>
+                            <button class="btn btn-primary">confirm</button>
+                        </form>
+                    </div>
+                    <div class="row download-section">
+                        <div class="span6">
+                            <span>Want to have a copy of your data right now?</span>
+                            <button id="download" class="btn">download</button>
+                        </div>
+                    </div>
+                    <div class="row leave-section">
+                        <div class="span6">
+                            <div class="alert alert-error">
+                                <p>You don't want to use rs-backup anymore? Leave no traces.</p>
+                                <button class="btn btn-danger">leave rs-backup</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        </div>
+
+
+        <script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
+        <script>window.jQuery || document.write('<script src="js/vendor/jquery.min.js"><\/script>')</script>
+        <script src="//remotestoragejs.com/build/0.7.0-head/remoteStorage.js"></script>
+        <script>window.jQuery || document.write('<script src="js/vendor/remotestorage.js"><\/script>')</script>
+        <script src="js/vendor/bootstrap.min.js"></script>
+        <script src="js/app.js"></script>
+
+        <!-- Google Analytics: change UA-XXXXX-X to be your site's ID. -->
+        <script>
+            var _gaq=[['_setAccount','UA-XXXXX-X'],['_trackPageview']];
+            (function(d,t){var g=d.createElement(t),s=d.getElementsByTagName(t)[0];
+            g.src=('https:'==location.protocol?'//ssl':'//www')+'.google-analytics.com/ga.js';
+            s.parentNode.insertBefore(g,s)}(document,'script'));
+        </script>
+    </body>
+</html>

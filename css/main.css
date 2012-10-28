@@ -1,0 +1,36 @@
+#remotestorage-state {
+  top: -2px !important;
+}
+
+.intro, .backup {
+  float: left;
+  width: 50%;
+}
+
+.frame {
+  width: 100%;
+  overflow-x: hidden;
+}
+
+.container {
+  position: relative;
+  width: 200%;
+  right: 0;
+  -webkit-transition: 0.5s right ease;
+  -moz-transition: 0.5s right ease;
+  -o-transition: 0.5s right ease;
+  -ms-transition: 0.5s right ease;
+  transition: 0.5s right ease;
+}
+
+.container.right {
+  right: 100%;
+}
+
+.download-section {
+  margin-top: 30px;
+}
+
+.leave-section {
+  margin-top: 50px;
+}
