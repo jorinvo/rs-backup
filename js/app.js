@@ -145,22 +145,30 @@ $(function() {
     $submit.text('subscribe');
   }
 
+  var alertTimeout = (function() {
+    var timeout;
+    return function(cb) {
+      clearTimeout(timeout);
+      timeout = setTimeout(cb, 5000);
+    };
+  })();
+
   function success(msg) {
     $success.text(msg);
     $error.addClass('hidden');
     $success.removeClass('hidden');
-    setTimeout(function() {
+    alertTimeout(function() {
       $success.addClass('hidden');
-    }, 5000);
+    });
   }
 
   function error(msg) {
     $error.text(msg);
     $success.addClass('hidden');
     $error.removeClass('hidden');
-    setTimeout(function() {
+    alertTimeout(function() {
       $error.addClass('hidden');
-    }, 5000);
+    });
   }
 
   var mailRegEx = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
