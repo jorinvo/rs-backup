@@ -35,14 +35,17 @@ $(function() {
     }
   });
 
-  remoteStorage.claimAccess({'root':'rw'});
+  remoteStorage.claimAccess('root', 'r');
   remoteStorage.displayWidget('remotestorage-connect');
   // remoteStorage.util.silenceAllLoggers();
   // remoteStorage.root.setOnChange(console.log);
   // remoteStorage.root.use('/');
 
   $('#brand').click(function() {
-    showView('intro');
+    // showView('intro');
+    $.post('test', function(res) {
+      console.log(res);
+    });
   });
 
   $introLink.click(function() {
@@ -73,7 +76,7 @@ $(function() {
     $.ajax({
       type: 'POST',
       url: '/update',
-      data: getData(),
+      data: getData('all'),
       success: function(res) {
         $leave.removeClass('disabled');
         success(res);
@@ -120,10 +123,9 @@ $(function() {
 
   function getData(what) {
     var data = {
-      //TODO: remove line as soon as bearer token works
-      bearerToken: '4eb4b398c36e62da87469133e2f0cb3f9574d5b3865051',
-      // bearerToken: remoteStorage.getBearerToken(),
-      storageHref: remoteStorage.getStorageHref()
+      bearerToken: remoteStorage.getBearerToken(),
+      storageHref: remoteStorage.getStorageHref(),
+      storageType: localStorage.getItem('remote_storage_wire_storageType')
     };
     if (what === 'all') {
       data.mail = $mail.val();
