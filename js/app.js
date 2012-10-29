@@ -13,6 +13,7 @@ $(function() {
   var $introLink = $('#intro-link');
   var $backupLink = $('#backup-link');
 
+
   remoteStorage.onWidget('ready', function() {
     showView('backup');
     $backupLink.show();
@@ -38,8 +39,7 @@ $(function() {
   remoteStorage.claimAccess('root', 'r');
   remoteStorage.displayWidget('remotestorage-connect');
   // remoteStorage.util.silenceAllLoggers();
-  // remoteStorage.root.setOnChange(console.log);
-  // remoteStorage.root.use('/');
+
 
   $('#brand').click(function() {
     // showView('intro');
@@ -109,6 +109,7 @@ $(function() {
     });
   });
 
+
   function showView(view) {
     if (view === 'intro') {
       $backupLink.removeClass('active');
@@ -146,14 +147,20 @@ $(function() {
 
   function success(msg) {
     $success.text(msg);
-    $error.hide();
-    $success.show();
+    $error.addClass('hidden');
+    $success.removeClass('hidden');
+    setTimeout(function() {
+      $success.addClass('hidden');
+    }, 5000);
   }
 
-    function error(msg) {
+  function error(msg) {
     $error.text(msg);
-    $success.hide();
-    $error.show();
+    $success.addClass('hidden');
+    $error.removeClass('hidden');
+    setTimeout(function() {
+      $error.addClass('hidden');
+    }, 5000);
   }
 
   var mailRegEx = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
