@@ -14,7 +14,8 @@ require('./js/vendor/remoteStorage.root');
 
 var app = express();
 
-var db = mongoose.createConnection('localhost', 'rs-backup');
+var db = mongoose.createConnection.apply(process.env.MONGOHQ_URL ? [process.env.MONGOHQ_URL] : ['localhost', 'rs-backup']);
+
 var User;
 db.on('error', console.error.bind(console, 'connection error:'));
 db.once('open', function () {
