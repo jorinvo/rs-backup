@@ -1,0 +1,7 @@
+{
+  "service": "Gmail",
+  "auth": {
+    "user": "remotestore.backup@gmail.com",
+    "pass": "sdpefchsrpbfxq4h6nbb5tb4"
+  }
+}
