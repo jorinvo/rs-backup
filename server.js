@@ -159,7 +159,7 @@ function getRemoteData(optn) {
     }, {});
     remoteStorage.flushLocal();
     optn.cb(optn);
-  }, 15000);
+  }, 40000);
   });
 }
 
