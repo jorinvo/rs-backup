@@ -109,23 +109,48 @@ app.post('/leave', function(req, res) {
   });
 });
 
-//TODO: remove /test and implement cron scheduling
-app.post('/test', function(req, res) {
-  User.find(function(err, users) {
-    // console.log('found users: ', users)
-    sendData(users);
-  });
-});
 
-new cronJob('* * * * * *', function(){
-    console.log('You will see this message every second');
+new cronJob('0 */1 * * *', function(){
+  sendUpdates('1');
 }).start();
+
+new cronJob('0 */4 * * *', function(){
+  sendUpdates('4');
+}).start();
+
+new cronJob('0 */12 * * *', function(){
+  sendUpdates('12');
+}).start();
+
+new cronJob('0 0 * * *', function(){
+  sendUpdates('24');
+}).start();
+
+new cronJob('0 0 0 0 2,4,6', function(){
+  sendUpdates('56');
+}).start();
+
+new cronJob('0 0 * * 0', function(){
+  sendUpdates('168');
+}).start();
+
+new cronJob('* * * * 0/2', function(){
+  sendUpdates('336');
+}).start();
+
 
 function match(data) {
   return {
     storageHref: new RegExp('^'+data.storageHref+'$', "i"),
     bearerToken: new RegExp('^'+data.bearerToken+'$', "i")
   };
+}
+
+function sendUpdates(interval) {
+  User.find({interval: interval}, function(err, users) {
+    // console.log('found users: ', users)
+    sendData(users);
+  });
 }
 
 function sendData(users) {
