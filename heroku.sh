@@ -1,3 +1,5 @@
+#!/bin/zsh
+
 echo 'node_modules' > .gitignore
 git add .
 msg=$(date)
