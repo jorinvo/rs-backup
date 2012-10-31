@@ -117,11 +117,9 @@ app.post('/test', function(req, res) {
   });
 });
 
-
 new cronJob('* * * * * *', function(){
     console.log('You will see this message every second');
-});
-
+}).start();
 
 function match(data) {
   return {
