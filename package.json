@@ -1,6 +1,6 @@
 {
   "name": "rs-backup",
-  "description": "automate backups of your remoteStorage",
+  "description": "automated backups of your remoteStorage right into your mailbox",
   "version": "0.0.1",
   "engines": {
     "node": "0.6.16"

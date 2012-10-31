@@ -42,10 +42,7 @@ $(function() {
 
 
   $('#brand').click(function() {
-    // showView('intro');
-    $.post('test', function(res) {
-      console.log(res);
-    });
+    showView('intro');
   });
 
   $introLink.click(function() {
