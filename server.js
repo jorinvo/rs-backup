@@ -14,7 +14,7 @@ require('./js/vendor/remoteStorage.root');
 
 var app = express();
 
-var db = mongoose.createConnection.apply(process.env.MONGOHQ_URL ? [process.env.MONGOHQ_URL] : ['localhost', 'rs-backup']);
+var db = mongoose.createConnection.apply(mongoose, process.env.MONGOHQ_URL ? [process.env.MONGOHQ_URL] : ['localhost', 'rs-backup']);
 
 var User;
 db.on('error', console.error.bind(console, 'connection error:'));
@@ -30,7 +30,7 @@ db.once('open', function () {
 });
 
 var nodemailer = require("nodemailer");
-var transport = nodemailer.createTransport("SMTP", fs.readFileSync('./mail.json'));
+var transport = nodemailer.createTransport("SMTP", require('./mail.json'));
 // var transport = nodemailer.createTransport("sendmail");
 
 app.configure(function() {
@@ -167,15 +167,15 @@ function sendMail(optn) {
   //TODO: add directly unsubscribe link to mail
   transport.sendMail({
       from: "rs backup <remotestore.backup@gmail.com>",
-      to: "hey@jorin-vogel.com",
-      // to: optn.user.mail,
+      // to: "hey@jorin-vogel.com",
+      to: optn.user.mail,
       subject: "hi",
-      // html: JSON.stringify(optn.data),
-      html: "hello world!",
+      html: JSON.stringify(optn.data),
+      // html: "hello world!",
       generateTextFromHTML: true
   }, function(error, response) {
     if (error) {
-      console.log(error);
+      console.log('jorins err: ', error);
     } else {
       console.log("Message sent: " + response.message);
     }
