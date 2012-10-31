@@ -4,6 +4,7 @@ var _ = require('underscore');
 global.require = require;
 var express = require('express');
 var mongoose = require('mongoose');
+var cronJob = require('cron').CronJob;
 
 //TODO: implement faster and bigger localStorage based on redis
 // localStorage = require('localStorage');
@@ -114,6 +115,11 @@ app.post('/test', function(req, res) {
     // console.log('found users: ', users)
     sendData(users);
   });
+});
+
+
+new cronJob('* * * * * *', function(){
+    console.log('You will see this message every second');
 });
 
 
