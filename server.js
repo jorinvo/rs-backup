@@ -32,7 +32,6 @@ db.once('open', function () {
 
 var nodemailer = require("nodemailer");
 var transport = nodemailer.createTransport("SMTP", require('./mail.json'));
-// var transport = nodemailer.createTransport("sendmail");
 
 app.configure(function() {
   app.set('views', '');
@@ -41,8 +40,6 @@ app.configure(function() {
   });
   app.engine('html', require('ejs').renderFile);
   app.use(express.bodyParser());
-  // app.use(express.methodOverride());
-  // app.use(app.router);
   app.use(express.static(__dirname));
   app.use(express.logger());
   app.use(express.compress());
@@ -86,7 +83,6 @@ app.post('/update', function(req, res) {
   });
 });
 
-//TODO: remove /download
 app.post('/download', function(req, res) {
     // res.attachment('tmp/' + filename);
 });
@@ -148,14 +144,12 @@ function match(data) {
 
 function sendUpdates(interval) {
   User.find({interval: interval}, function(err, users) {
-    // console.log('found users: ', users)
     sendData(users);
   });
 }
 
 function sendData(users) {
   interate(users, function(user, next) {
-    // console.log('user: ', user)
     //TODO: zip data
     getRemoteData({
       user: user,
