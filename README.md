@@ -16,13 +16,13 @@ Sign up at http://rs-backup.herokuapp.com.
 * `npm install` the project.
 * Make sure you have a running mongoDB instance.
 * create a `mail.json` file like:
-   {
+```{
      "service": "Gmail",
      "auth": {
        "user": "user@gmail.com",
        "pass": "***"
      }
-   }
+   }```
 * Kick off the server with `node server.js`
 
 
