@@ -1,4 +1,5 @@
 /* remoteStorage.js 0.7.0-head remoteStoragejs.com, MIT-licensed */
+var nodeRequire = require;
 (function() {
 
 /**
@@ -355,7 +356,7 @@ define('lib/assets',[], function() {
 
 define('lib/util',[], function() {
 
-  
+
 
   // Namespace: util
   //
@@ -375,8 +376,54 @@ define('lib/util',[], function() {
     debug: false
   };
 
+  var atob, btoa;
+
+  // btoa / atob for nodejs implemented here, so util/platform don't form
+  // a circular dependency.
+  if(typeof(window) === 'undefined') {
+    atob = function(str) {
+      var buffer = str instanceof Buffer ? str : new Buffer(str, 'base64');
+      return buffer.toString('binary');
+    };
+    btoa = function(str) {
+      var buffer = str instanceof Buffer ? str : new Buffer(str, 'binary');
+      return buffer.toString('base64');
+    };
+  } else {
+    atob = window.atob;
+    btoa = window.btoa;
+  }
+
   var util = {
 
+    bufferToRaw: function(buffer) {
+      var view = new Uint8Array(buffer);
+      var nData = view.length;
+      var rawData = '';
+      for(var i=0;i<nData;i++) {
+        rawData += String.fromCharCode(view[i]);
+      }
+      return rawData
+    },
+
+    rawToBuffer: function(rawData) {
+      var nData = rawData.length;
+      var buffer = new ArrayBuffer(nData);
+      var view = new Uint8Array(buffer);
+
+      for(var i=0;i<nData;i++) {
+        view[i] = rawData.charCodeAt(i);
+      }
+      return buffer;
+    },
+
+    encodeBinary: function(buffer) {
+      return btoa(this.bufferToRaw(buffer));
+    },
+
+    decodeBinary: function(data) {
+      return this.rawToBuffer(atob(data));
+    },
 
     // Method: toArray
     // Convert something into an Array.
@@ -395,7 +442,7 @@ define('lib/util',[], function() {
     isDir: function(path) {
       return path.substr(-1) == '/';
     },
-    
+
     pathParts: function(path) {
       var parts = ['/'];
       var md;
@@ -465,7 +512,6 @@ define('lib/util',[], function() {
     },
 
     deprecate: function(methodName, replacement) {
-      console.trace();
       console.log('WARNING: ' + methodName + ' is deprecated, use ' + replacement + ' instead');
     },
 
@@ -515,6 +561,9 @@ define('lib/util',[], function() {
         },
 
         once: function(eventName, handler) {
+          if(! this._handlers[eventName]) {
+            throw "Unknown event: " + eventName;
+          }
           var i = this._handlers[eventName].length;
           if(typeof(handler) !== 'function') {
             throw "Expected function as handler, got: " + typeof(handler);
@@ -585,7 +634,7 @@ define('lib/util',[], function() {
             }
 
             args.unshift("[" + name.toUpperCase() + "] -- " + level + " ");
-            
+
             (console[type] || console.log).apply(console, args);
           }
         };
@@ -684,12 +733,14 @@ define('lib/util',[], function() {
     // The iter receives the matching key as it's only argument.
     grepLocalStorage: function(pattern, iter) {
       var numLocalStorage = localStorage.length;
+      var keys = [];
       for(var i=0;i<numLocalStorage;i++) {
         var key = localStorage.key(i);
         if(pattern.test(key)) {
-          iter(key);
+          keys.push(key);
         }
       }
+      keys.forEach(iter);
     }
   };
 
@@ -732,7 +783,7 @@ define('lib/util',[], function() {
 
 define('lib/platform',['./util'], function(util) {
 
-  
+
 
   // Namespace: platform
   //
@@ -899,10 +950,15 @@ define('lib/platform',['./util'], function(util) {
     };
     if(typeof(params.data) === 'string') {
       xhr.send(params.data);
+    } else if(typeof(params.data) === 'object' &&
+              params.data instanceof ArrayBuffer) {
+      //xhr.send(util.bufferToRaw(params.data));
+      xhr.send(params.data);
     } else {
       xhr.send();
     }
   }
+
   function ajaxExplorer(params) {
     //this won't work, because we have no way of sending the Authorization header. It might work for GET to the 'public' category, though.
     var xdr=new XDomainRequest();
@@ -927,10 +983,16 @@ define('lib/platform',['./util'], function(util) {
       xdr.send();
     }
   }
+
   function ajaxNode(params) {
-    var http=global.require('http'),
-      https=global.require('https'),
-      url=global.require('url');
+
+    if(typeof(params.data) === 'object' && params.data instanceof Blob) {
+      throw new Error("Sending binary data not yet implemented for nodejs");
+    }
+
+    var http=nodeRequire('http'),
+      https=nodeRequire('https'),
+      url=nodeRequire('url');
     if(!params.method) {
       params.method='GET';
     }
@@ -950,7 +1012,6 @@ define('lib/platform',['./util'], function(util) {
     var timer, timedOut;
 
     if(params.timeout) {
-      params.timeout = 15000;
       timer = setTimeout(function() {
         params.error('timeout');
         timedOut=true;
@@ -965,7 +1026,6 @@ define('lib/platform',['./util'], function(util) {
         str+=chunk;
       });
       response.on('end', function() {
-        console.log('rs end', response.statusCode)
         if(timer) {
           clearTimeout(timer);
         }
@@ -990,6 +1050,7 @@ define('lib/platform',['./util'], function(util) {
       request.end();
     }
   }
+
   function parseXmlBrowser(str, cb) {
     var tree=(new DOMParser()).parseFromString(str, 'text/xml');
     var nodes=tree.getElementsByTagName('Link');
@@ -1018,13 +1079,15 @@ define('lib/platform',['./util'], function(util) {
     }
     cb(null, obj);
   }
+
   function parseXmlNode(str, cb) {
-    var xml2js=require('xml2js');
+    var xml2js=nodeRequire('xml2js');
     new xml2js.Parser().parseString(str, cb);
   }
 
   function harvestParamNode() {
   }
+
   function harvestParamBrowser(param) {
     // location.hash in firefox has all URI entities decoded, so we can't
     // differentiate between %26 and & in URIs passed as parameters.
@@ -1041,8 +1104,10 @@ define('lib/platform',['./util'], function(util) {
       }
     }
   }
+
   function setElementHtmlNode(eltName, html) {
   }
+
   function setElementHtmlBrowser(eltName, html) {
     var elt = eltName;
     if(! (elt instanceof Element)) {
@@ -1050,13 +1115,17 @@ define('lib/platform',['./util'], function(util) {
     }
     elt.innerHTML = html;
   }
+
   function getElementValueNode(eltName) {
   }
+
   function getElementValueBrowser(eltName) {
     return document.getElementById(eltName).value;
   }
+
   function eltOnNode(eltName, eventType, cb) {
   }
+
   function eltOnBrowser(eltName, eventType, cb) {
     if(eventType == 'click') {
       document.getElementById(eltName).onclick = cb;
@@ -1066,23 +1135,31 @@ define('lib/platform',['./util'], function(util) {
       document.getElementById(eltName).onkeyup = cb;
     }
   }
+
   function getLocationBrowser() {
     //TODO: deal with http://user:a#aa@host.com/ although i doubt someone would actually use that even once between now and the end of the internet
     return window.location.href.split('#')[0];
   }
+
   function getLocationNode() {
   }
+
   function setLocationBrowser(location) {
     window.location = location;
   }
+
   function setLocationNode() {
   }
+
   function alertBrowser(str) {
     alert(str);
   }
+
   function alertNode(str) {
     console.log(str);
   }
+
+
   if(typeof(window) === 'undefined') {
     return {
       ajax: ajaxNode,
@@ -1128,7 +1205,7 @@ define('lib/webfinger',
   ['./platform', './util'],
   function (platform, util) {
 
-    
+
 
     // Namespace: webfinger
     //
@@ -1351,7 +1428,7 @@ define('lib/hardcoded',
   ['./platform'],
   function (platform) {
 
-    
+
 
     // Namespace: hardcoded
     //
@@ -1490,7 +1567,7 @@ define('lib/getputdelete',
   ['./platform', './util'],
   function (platform, util) {
 
-    
+
 
     var logger = util.getLogger('getputdelete');
 
@@ -1498,7 +1575,7 @@ define('lib/getputdelete',
 
     function getContentType(headers) {
       if(headers['content-type']) {
-        return headers['content-type'].split(';')[0];
+        return headers['content-type'];
       } else {
         logger.error("Falling back to default content type: ", defaultContentType, JSON.stringify(headers));
         return defaultContentType;
@@ -1520,7 +1597,13 @@ define('lib/getputdelete',
         },
         success: function(data, headers) {
           //logger.debug('doCall cb '+url, 'headers:', headers);
-          cb(null, data, getContentType(headers));
+          var mimeType = getContentType(headers);
+
+          if(mimeType.match(/charset=binary/)) {
+            data = util.rawToBuffer(data);
+          }
+
+          cb(null, data, mimeType.split(';')[0]);
         },
         timeout: deadLine || 5000,
         headers: {}
@@ -1530,6 +1613,9 @@ define('lib/getputdelete',
         platformObj.headers['Authorization'] = 'Bearer ' + token;
       }
       if(mimeType) {
+        if(typeof(value) == 'object' && value instanceof ArrayBuffer) {
+          mimeType += '; charset=binary';
+        }
         platformObj.headers['Content-Type'] = mimeType;
       }
 
@@ -1552,7 +1638,7 @@ define('lib/getputdelete',
             try {
               data = JSON.parse(data);
             } catch (e) {
-              cb('unparseable directory index');
+              cb('unparseable directory index: ' + data);
               return;
             }
           }
@@ -1562,8 +1648,10 @@ define('lib/getputdelete',
     }
 
     function put(url, value, mimeType, token, cb) {
-      if(typeof(value) !== 'string') {
-        cb("invalid value given to PUT, only strings allowed, got " + typeof(value));
+      if(! (typeof(value) === 'string' || (typeof(value) === 'object' &&
+                                           value instanceof ArrayBuffer))) {
+        cb(new Error("invalid value given to PUT, only strings allowed, got "
+                     + typeof(value)));
       }
 
       doCall('PUT', url, value, mimeType, token, function(err, data) {
@@ -1621,7 +1709,7 @@ define('lib/getputdelete',
 
 define('lib/wireClient',['./getputdelete', './util'], function (getputdelete, util) {
 
-  
+
 
   var prefix = 'remote_storage_wire_';
 
@@ -1659,6 +1747,7 @@ define('lib/wireClient',['./getputdelete', './util'], function (getputdelete, ut
     util.grepLocalStorage(new RegExp('^' + prefix), function(key) {
       localStorage.removeItem(key);
     });
+    calcState();
   }
 
   function getState() {
@@ -1749,7 +1838,8 @@ define('lib/wireClient',['./getputdelete', './util'], function (getputdelete, ut
     if(typeof(path) != 'string') {
       cb(new Error('argument "path" should be a string'));
     } else {
-      if(valueStr && typeof(valueStr) != 'string') {
+      if(valueStr && typeof(valueStr) != 'string' &&
+         !(typeof(valueStr) == 'object' && valueStr instanceof ArrayBuffer)) {
         valueStr = JSON.stringify(valueStr);
       }
       getputdelete.set(resolveKey(path), valueStr, mimeType, token, cb);
@@ -1815,7 +1905,7 @@ define('lib/wireClient',['./getputdelete', './util'], function (getputdelete, ut
     getStorageHref   : function() {
       return getSetting('storageHref');
     },
-    
+
     // Method: SetBearerToken
     //
     // Set the bearer token for authorization
@@ -1861,7 +1951,7 @@ define('lib/wireClient',['./getputdelete', './util'], function (getputdelete, ut
     //
     // Install an event handler
     //
-    // 
+    //
     on               : on,
 
     // Method: getState
@@ -1877,9 +1967,9 @@ define('lib/wireClient',['./getputdelete', './util'], function (getputdelete, ut
   };
 });
 
-define('lib/store',['./util'], function (util) {
+define('lib/store',['./util', './platform'], function (util, platform) {
 
-  
+
 
   // Namespace: store
   //
@@ -1939,7 +2029,7 @@ define('lib/store',['./util'], function (util) {
       timestamp: node.timestamp
     });
   }
-  
+
   //
   // Event: error
   // See <BaseClient.Events>
@@ -2018,13 +2108,17 @@ define('lib/store',['./util'], function (util) {
   //
   function forgetAll() {
     var numLocalStorage = localStorage.length;
+    var keys = [];
     for(var i=0; i<numLocalStorage; i++) {
       if(localStorage.key(i).substr(0, prefixNodes.length) == prefixNodes ||
          localStorage.key(i).substr(0, prefixNodesData.length) == prefixNodesData) {
-        localStorage.removeItem(localStorage.key(i));
-        i--;
+        keys.push(localStorage.key(i));
       }
     }
+
+    keys.forEach(function(key) {
+      localStorage.removeItem(key);
+    });
   }
 
   // Function: setNodeData
@@ -2042,6 +2136,7 @@ define('lib/store',['./util'], function (util) {
   //   change w/ origin=remote - unless this is an outgoing change
   //
   function setNodeData(path, data, outgoing, timestamp, mimeType) {
+    logger.debug('PUT', path, { data: data, mimeType: mimeType });
     var node = getNode(path);
     var oldValue;
 
@@ -2057,6 +2152,14 @@ define('lib/store',['./util'], function (util) {
       mimeType='application/json';
     }
     node.mimeType = mimeType;
+
+    if(typeof(data) == 'object' && data instanceof ArrayBuffer) {
+      node.binary = true;
+      data = util.encodeBinary(data);
+    } else {
+      node.binary = false;
+    }
+
     updateNodeData(path, data);
     updateNode(path, (data ? node : undefined), outgoing, false, timestamp, oldValue);
   }
@@ -2071,10 +2174,15 @@ define('lib/store',['./util'], function (util) {
   function getNodeData(path, raw) {
     logger.debug('GET', path);
     validPath(path);
+
     var valueStr = localStorage.getItem(prefixNodesData+path);
     var node = getNode(path);
+
     if(valueStr) {
-      if((!raw) && (node.mimeType == "application/json")) {
+
+      if(node.binary) {
+        valueStr = util.decodeBinary(valueStr);
+      } else if((!raw) && (node.mimeType == "application/json")) {
         try {
           return JSON.parse(valueStr);
         } catch(exc) {
@@ -2165,7 +2273,7 @@ define('lib/store',['./util'], function (util) {
     if(parentPath) {
       var parent = getNode(parentPath);
       delete parent.diff[baseName];
-      
+
       updateNode(parentPath, parent, false, true);
 
       if(Object.keys(parent.diff).length === 0) {
@@ -2201,9 +2309,6 @@ define('lib/store',['./util'], function (util) {
 
   }
 
-
-
-
   function isPrefixed(key) {
     return key.substring(0, prefixNodes.length) == prefixNodes;
   }
@@ -2230,7 +2335,6 @@ define('lib/store',['./util'], function (util) {
   function isForeign(path) {
     return path[0] != '/';
   }
-
 
   function determineDirTimestamp(path) {
     var data = getNodeData(path);
@@ -2342,11 +2446,11 @@ define('lib/store',['./util'], function (util) {
   }
 
   return {
-    
+
     events: events,
 
     // method         , local              , used by
-                                           
+
     getNode           : getNode,          // sync
     getNodeData       : getNodeData,      // sync
     setNodeData       : setNodeData,      // sync
@@ -2359,7 +2463,7 @@ define('lib/store',['./util'], function (util) {
     setNodeAccess     : setNodeAccess,
     setNodeForce      : setNodeForce,
     forget            : forget,
-    
+
     forgetAll         : forgetAll,        // widget
     fireInitialEvents : fireInitialEvents // widget
   };
@@ -2368,7 +2472,7 @@ define('lib/store',['./util'], function (util) {
 
 define('lib/sync',['./wireClient', './store', './util'], function(wireClient, store, util) {
 
-  
+
 
   var events = util.getEventEmitter('error', 'conflict', 'state', 'busy', 'ready', 'timeout');
   var logger = util.getLogger('sync');
@@ -2395,13 +2499,9 @@ define('lib/sync',['./wireClient', './store', './util'], function(wireClient, st
   }
 
   function clearSettings() {
-    var numLocalStorage = localStorage.length;
-    for(var i=0;i<numLocalStorage;i++) {
-      var key = localStorage.key(i);
-      if(key.match(new RegExp('^' + settingsPrefix))) {
-        localStorage.removeItem(key);
-      }
-    }
+    util.grepLocalStorage(new RegExp('^' + settingsPrefix), function(key) {
+      localStorage.removeItem(key);
+    });
   }
 
 
@@ -2413,7 +2513,7 @@ define('lib/sync',['./wireClient', './store', './util'], function(wireClient, st
   // * claim access on the root of the tree in question (see <remoteStorage.claimAccess>)
   // * state which branches you wish to have synced
   // * release paths you no longer need from the sync plan, so they won't impact performance
-  //     
+  //
   // Now suppose you have a data tree like this:
   //   (start code)
   //
@@ -2424,7 +2524,7 @@ define('lib/sync',['./wireClient', './store', './util'], function(wireClient, st
   //     d   E   f
   //        / \
   //       g   h
-  // 
+  //
   //   (end code)
   //
   // Let's consider *A* to be our root node (it may be a module root, doesn't
@@ -2436,7 +2536,7 @@ define('lib/sync',['./wireClient', './store', './util'], function(wireClient, st
   // Now as soon as sync is triggered (usually this happens when connecting
   // through the widget), the entire tree, with all it's nodes, including data
   // nodes (files) will be synchronized and cached to localStorage.
-  // 
+  //
   // If we previously set up a 'change' handler, it will now be called for each
   // data node, as it has been synchronized.
   //
@@ -2498,7 +2598,7 @@ define('lib/sync',['./wireClient', './store', './util'], function(wireClient, st
   //
   // Will update local and remote data as needed.
   //
-  // Calls it's callback once 'ready' is fired.
+  // Calls it's callback once the cycle is complete.
   //
   // Fires:
   //   ready    - when the sync queue is empty afterwards
@@ -2515,12 +2615,14 @@ define('lib/sync',['./wireClient', './store', './util'], function(wireClient, st
     var roots = findRoots();
     var synced = 0;
 
-    function rootCb() {
-      synced++;
-      if(synced == roots.length) {
-        sync.lastSyncAt = new Date();
-        if(callback) {
-          callback.apply(this, arguments);
+    function rootCb(path) {
+      return function() {
+        synced++;
+        if(synced == roots.length) {
+          sync.lastSyncAt = new Date();
+          if(callback) {
+            callback.apply(this, arguments);
+          }
         }
       }
     }
@@ -2533,9 +2635,10 @@ define('lib/sync',['./wireClient', './store', './util'], function(wireClient, st
     roots.forEach(function(root) {
       enqueueTask(function() {
         traverseTree(root, processNode, {
-          pushOnly: pushOnly
+          pushOnly: pushOnly,
+          done: finishTask
         });
-      }, rootCb);
+      }, rootCb(root));
     });
   }
 
@@ -2579,7 +2682,8 @@ define('lib/sync',['./wireClient', './store', './util'], function(wireClient, st
       logger.info("partial sync started from: " + startPath);
       events.once('ready', callback);
       traverseTree(startPath, processNode, {
-        depth: depth
+        depth: depth,
+        done: finishTask
       });
     });
   }
@@ -2615,6 +2719,7 @@ define('lib/sync',['./wireClient', './store', './util'], function(wireClient, st
       fetchRemoteNode(path, function(remoteNode) {
         var localNode = fetchLocalNode(path);
         processNode(path, localNode, remoteNode);
+        finishTask();
         if(callback) {
           // FIXME: document error parameter.
           callback(null, store.getNode(path), store.getNodeData(path));
@@ -2653,29 +2758,34 @@ define('lib/sync',['./wireClient', './store', './util'], function(wireClient, st
   // function to call when current task is done, before next task is popped from taskQueue.
   var currentFinalizer = null;
 
+  function beginTask() {
+    setBusy();
+    var task = taskQueue.shift();
+    if(! task) {
+      throw new Error("Can't begin task, queue is empty");
+    }
+    currentFinalizer = task.finalizer;
+    task.run();
+  }
 
-  events.on('ready', function() {
-    logger.info("READY", 'queued tasks: ', taskQueue.length);
+  function finishTask() {
     if(currentFinalizer) {
       currentFinalizer();
-      currentFinalizer = null;
     }
     if(taskQueue.length > 0) {
-      var nextTask = taskQueue.shift();
-      currentFinalizer = nextTask.finalizer;
-      nextTask.run();
+      beginTask();
+    } else {
+      setReady();
     }
-  });
+  }
 
   function enqueueTask(callback, finalizer) {
+    taskQueue.push({
+      run: callback,
+      finalizer: finalizer
+    });
     if(ready) {
-      currentFinalizer = finalizer;
-      callback();
-    } else {
-      taskQueue.push({
-        run: callback,
-        finalizer: finalizer
-      });
+      beginTask();
     }
   }
 
@@ -2686,19 +2796,8 @@ define('lib/sync',['./wireClient', './store', './util'], function(wireClient, st
   }
   function setReady() {
     ready = true;
-    if(deferredIterationQueue.length > 0) {
-      spawnQueue.apply(this, deferredIterationQueue.shift());
-    } else {
-      events.emit('state', 'connected');
-      events.emit('ready');
-    }
-  }
-
-  // see if we can fire 'ready', or if there's more to do
-  function tryReady() {
-    if(ready && deferredIterationQueue.length == 0) {
-      events.emit('ready');
-    }
+    events.emit('state', 'connected');
+    events.emit('ready');
   }
 
   // Function: getState
@@ -2831,6 +2930,10 @@ define('lib/sync',['./wireClient', './store', './util'], function(wireClient, st
     wireClient.set(
       path, local.data, local.mimeType,
       makeErrorCatcher(path, function() {
+        var parentPath = util.containingDir(path);
+        if(! parentPath) {
+          throw "Node has no parent path: " + path;
+        }
         // update lastUpdatedAt for this node to exact remote time.
         // this is a totally unnecessary step and should be handled better
         // in the protocol (e.g. by returning the new timestamp with the PUT
@@ -2849,6 +2952,10 @@ define('lib/sync',['./wireClient', './store', './util'], function(wireClient, st
   //
   // Used as a callback for <traverseTree>.
   function processNode(path, local, remote) {
+
+    if(util.isDir(path)) {
+      throw new Error("Attempt to process directory node: " + path);
+    }
 
     var action = null;
 
@@ -3050,18 +3157,29 @@ define('lib/sync',['./wireClient', './store', './util'], function(wireClient, st
     }
   }
 
-  function findRoots(path) {
-    var root = store.getNode('/');
-    var roots = [];
-    if(root.startAccess) {
-      roots.push('/');
-    } else {
-      Object.keys(store.getNodeData('/')).forEach(function(key) {
-        if(store.getNode('/' + key).startAccess) {
-          roots.push('/' + key);
+  function findRoots() {
+    function findIn(path) {
+      var root = store.getNode(path);
+      var roots = [];
+      if(root.startAccess) {
+        roots.push(path);
+      } else {
+        var listing = store.getNodeData(path)
+        if(listing) {
+          Object.keys(listing).forEach(function(key) {
+            if(store.getNode(path + key).startAccess) {
+              roots.push(path + key);
+            }
+          });
         }
-      });
+      }
+      return roots;
     }
+    var roots = findIn('/');
+    var pubRoots = findIn('/public/');
+    pubRoots.forEach(function(r) {
+      roots.push(r);
+    });
     return roots;
   }
 
@@ -3117,7 +3235,7 @@ define('lib/sync',['./wireClient', './store', './util'], function(wireClient, st
   //           Depth will be decremented in each recursion
   function traverseTree(root, callback, opts) {
     logger.info('traverse', root, opts, 'callback?', !!callback);
-    
+
     if(! util.isDir(root)) {
       throw "Can't traverse data node: " + root;
     }
@@ -3154,7 +3272,7 @@ define('lib/sync',['./wireClient', './store', './util'], function(wireClient, st
       // no interest.
       // -> bail!
       logger.debug('skipping', root, 'no interest', '(access: ', opts.access, ' force: ', opts.force, ' forceTree: ', opts.forceTree, ')');
-      if(opts.access || root == '/') { // (access can begin only on the root or it's direct children, so we don't need to descend further)
+      if(opts.access || root == '/' || root == '/public/') { // (access can begin only on the root or it's direct children, so we don't need to descend further)
         var nextRoots = findNextForceRoots(root);
         if(nextRoots.length > 0) {
           var nextRoot;
@@ -3171,7 +3289,6 @@ define('lib/sync',['./wireClient', './store', './util'], function(wireClient, st
           return;
         } // no more roots.
       } // no access anyway.
-      tryReady();
       done();
       return; // done.
     }
@@ -3180,7 +3297,6 @@ define('lib/sync',['./wireClient', './store', './util'], function(wireClient, st
 
     if(! localDiff) {
       if(opts.pushOnly) {
-        tryReady();
         done();
         return;
       }
@@ -3189,10 +3305,6 @@ define('lib/sync',['./wireClient', './store', './util'], function(wireClient, st
     // fetch remote listing
     fetchNode(root, function(remoteListing) {
       if(! remoteListing) { remoteListing = {}; }
-
-      // not really "done", but no more immediate requests in this
-      // function.
-      done();
 
       // all keys in local and/or remote listing
       var fullListing = makeSet(
@@ -3226,7 +3338,6 @@ define('lib/sync',['./wireClient', './store', './util'], function(wireClient, st
           // no remote diff.
           // -> bail!
           logger.debug('skipping', root, 'no changes');
-          tryReady();
           done();
           return;
         }
@@ -3257,7 +3368,7 @@ define('lib/sync',['./wireClient', './store', './util'], function(wireClient, st
         } else {
           next();
         }
-      });
+      }, done);
 
     });
   }
@@ -3310,19 +3421,13 @@ define('lib/sync',['./wireClient', './store', './util'], function(wireClient, st
   //   list - an array of items to pass to the iter
   //   max  - maximum number of simultaneously running versions of iter
   //   iter - iterator to call
+  //   allDone - callback to call when all iterations are done
   //
   // Iterator parameters:
   //   item - an item from the list
   //   done - a callback function to call, when the iterator is finished
   //
-  function spawnQueue(list, max, iter) {
-    if(! ready) {
-      deferredIterationQueue.push([list, max, iter]);
-      return;
-    }
-
-    setBusy();
-
+  function spawnQueue(list, max, iter, allDone) {
     var n = 0;
     var i = 0;
     function next() {
@@ -3332,8 +3437,10 @@ define('lib/sync',['./wireClient', './store', './util'], function(wireClient, st
     function done() {
       n--;
       if(i === list.length && n === 0) {
-        setReady();
-      } else if(i < list.length) {
+        allDone();
+      } else if(n < 0) {
+        throw new Error("BUG: done() called more often than expected");
+      } else if(n < list.length) {
         spawn();
       }
     }
@@ -3383,7 +3490,7 @@ define('lib/sync',['./wireClient', './store', './util'], function(wireClient, st
 
   var limitedFullSync = limit('fullSync', fullSync, 10000);
   var limitedPartialSync = limit('partialSync', partialSync, 5000);
-  
+
   var sync = {
 
     lastSyncAt: null,
@@ -3867,7 +3974,7 @@ define('lib/widget',['./assets', './webfinger', './hardcoded', './wireClient', '
   // Fired when the widget state changes.
   // See <remoteStorage.getWidgetState> for available states.
 
-  
+
 
   var locale='en';
   var connectElement;
@@ -3915,7 +4022,7 @@ define('lib/widget',['./assets', './webfinger', './hardcoded', './wireClient', '
   }
 
   function getWidgetState() {
-    return widgetState;
+    return widgetState || 'anonymous';
   }
 
   function buildWidget() {
@@ -4092,7 +4199,7 @@ define('lib/widget',['./assets', './webfinger', './hardcoded', './wireClient', '
     }
 
     widget.cube.setAttribute('src', cubeIcon);
-    
+
     widget.bubble.innerHTML = bubbleText;
 
     if(bubbleVisible) {
@@ -4157,7 +4264,7 @@ define('lib/widget',['./assets', './webfinger', './hardcoded', './wireClient', '
   //   * As soon as the auth dialog redirects back with an access_token, the child popup calls
   //     "remotestorageTokenReceived" on the opening window and closes itself.
   //   * remotestorageTokenReceived recalculates the widget state -> we're connected!
-  // 
+  //
 
   function prepareAuthPopup() { // in parent window
     authPopupRef = window.open(
@@ -4395,7 +4502,7 @@ define('lib/widget',['./assets', './webfinger', './hardcoded', './wireClient', '
       } else {
         logger.error("unhandled sync error: ", error);
       }
-      
+
       if(initialSync) {
         // abort initial sync
         initialSync = false;
@@ -4421,7 +4528,11 @@ define('lib/widget',['./assets', './webfinger', './hardcoded', './wireClient', '
       displayError(translate(err));
     });
 
-    sync.on('state', setWidgetState);
+    sync.on('state', function(syncState) {
+      if(wireClient.getState() == 'connected') {
+        setWidgetState(syncState);
+      }
+    });
 
     if(typeof(options.authDialog) !== 'undefined') {
       authDialogStrategy = options.authDialog;
@@ -4464,7 +4575,7 @@ define('lib/widget',['./assets', './webfinger', './hardcoded', './wireClient', '
         return message;
       }
     });
-    
+
   }
 
   function addScope(module, mode) {
@@ -4472,7 +4583,7 @@ define('lib/widget',['./assets', './webfinger', './hardcoded', './wireClient', '
       scopesObj[module] = mode;
     }
   }
-  
+
   return {
     display : display,
     addScope: addScope,
@@ -4484,7 +4595,7 @@ define('lib/widget',['./assets', './webfinger', './hardcoded', './wireClient', '
 
 define('lib/nodeConnect',['./wireClient', './webfinger'], function(wireClient, webfinger) {
 
-  
+
 
   // Namespace: nodeConnect
   //
@@ -4546,7 +4657,7 @@ define('lib/nodeConnect',['./wireClient', './webfinger'], function(wireClient, w
     // Parameters:
     //   type - type of storage. If your storage supports remotestorage 2012.04, this is "https://www.w3.org/community/rww/wiki/read-write-web-00#simple"
     //   href - base URL of your storage
-    //   
+    //
     setStorageInfo: wireClient.setStorageInfo,
 
     // Method: setBearerToken
@@ -4754,8 +4865,8 @@ var validate = exports._validate = function(/*Any*/instance,/*Object*/schema,/*O
 			if(typeof instance != 'object' || instance instanceof Array){
 				errors.push({property:path,message:"an object is required"});
 			}
-			
-			for(var i in objTypeDef){ 
+
+			for(var i in objTypeDef){
 				if(objTypeDef.hasOwnProperty(i)){
 					var value = instance[i];
 					// skip _not_ specified properties
@@ -4819,9 +4930,112 @@ exports.mustBeValid = function(result){
 return exports;
 });
 
-define('lib/baseClient',['./sync', './store', './util', './validate', './wireClient'], function (sync, store, util, validate, wireClient) {
+/*!
+  Math.uuid.js (v1.4)
+  http://www.broofa.com
+  mailto:robert@broofa.com
 
-  
+  Copyright (c) 2010 Robert Kieffer
+  Dual licensed under the MIT and GPL licenses.
+
+  ********
+
+  Changes within remoteStorage.js:
+  2012-10-31:
+  - added AMD wrapper <niklas@unhosted.org>
+  - moved extensions for Math object into exported object.
+*/
+
+/*
+ * Generate a random uuid.
+ *
+ * USAGE: Math.uuid(length, radix)
+ *   length - the desired number of characters
+ *   radix  - the number of allowable values for each character.
+ *
+ * EXAMPLES:
+ *   // No arguments  - returns RFC4122, version 4 ID
+ *   >>> Math.uuid()
+ *   "92329D39-6F5C-4520-ABFC-AAB64544E172"
+ *
+ *   // One argument - returns ID of the specified length
+ *   >>> Math.uuid(15)     // 15 character ID (default base=62)
+ *   "VcydxgltxrVZSTV"
+ *
+ *   // Two arguments - returns ID of the specified length, and radix. (Radix must be <= 62)
+ *   >>> Math.uuid(8, 2)  // 8 character ID (base=2)
+ *   "01001010"
+ *   >>> Math.uuid(8, 10) // 8 character ID (base=10)
+ *   "47473046"
+ *   >>> Math.uuid(8, 16) // 8 character ID (base=16)
+ *   "098F4D35"
+ */
+define('lib/Math.uuid',[], function() {
+  // Private array of chars to use
+  var CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'.split('');
+
+  return {
+    uuid: function (len, radix) {
+      var chars = CHARS, uuid = [], i;
+      radix = radix || chars.length;
+
+      if (len) {
+        // Compact form
+        for (i = 0; i < len; i++) uuid[i] = chars[0 | Math.random()*radix];
+      } else {
+        // rfc4122, version 4 form
+        var r;
+
+        // rfc4122 requires these characters
+        uuid[8] = uuid[13] = uuid[18] = uuid[23] = '-';
+        uuid[14] = '4';
+
+        // Fill in random data.  At i==19 set the high bits of clock sequence as
+        // per rfc4122, sec. 4.1.5
+        for (i = 0; i < 36; i++) {
+          if (!uuid[i]) {
+            r = 0 | Math.random()*16;
+            uuid[i] = chars[(i == 19) ? (r & 0x3) | 0x8 : r];
+          }
+        }
+      }
+
+      return uuid.join('');
+    },
+
+    // A more performant, but slightly bulkier, RFC4122v4 solution.  We boost performance
+    // by minimizing calls to random()
+    uuidFast: function() {
+      var chars = CHARS, uuid = new Array(36), rnd=0, r;
+      for (var i = 0; i < 36; i++) {
+        if (i==8 || i==13 ||  i==18 || i==23) {
+          uuid[i] = '-';
+        } else if (i==14) {
+          uuid[i] = '4';
+        } else {
+          if (rnd <= 0x02) rnd = 0x2000000 + (Math.random()*0x1000000)|0;
+          r = rnd & 0xf;
+          rnd = rnd >> 4;
+          uuid[i] = chars[(i == 19) ? (r & 0x3) | 0x8 : r];
+        }
+      }
+      return uuid.join('');
+    },
+
+    // A more compact, but less performant, RFC4122v4 solution:
+    uuidCompact: function() {
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        var r = Math.random()*16|0, v = c == 'x' ? r : (r&0x3|0x8);
+        return v.toString(16);
+      });
+    }
+  };
+
+});
+
+define('lib/baseClient',['./sync', './store', './util', './validate', './wireClient', './Math.uuid'], function (sync, store, util, validate, wireClient, MathUUID) {
+
+
 
   var logger = util.getLogger('baseClient');
   var moduleEvents = {};
@@ -4833,6 +5047,8 @@ define('lib/baseClient',['./sync', './store', './util', './validate', './wireCli
         return parts[2];
       } else if(parts.length > 2){
         return parts[1];
+      } else if(parts.length == 2) {
+        return 'root';
       }
     }
   }
@@ -4858,7 +5074,12 @@ define('lib/baseClient',['./sync', './store', './util', './validate', './wireCli
   function fireError(absPath, error) {
     var isPublic = isPublicRE.test(absPath);
     var moduleName = extractModuleName(absPath);
-    moduleEvents[moduleName][isPublic].emit('error', error);
+    var modEvents = moduleEvents[moduleName];
+    if(! (modEvents && modEvents[isPublic])) {
+      moduleEvents['root'][isPublic].emit('error', error);
+    } else {
+      modEvents[isPublic].emit('error', error);
+    }
   }
 
   store.on('change', function(event) {
@@ -4875,8 +5096,7 @@ define('lib/baseClient',['./sync', './store', './util', './validate', './wireCli
     fireModuleEvent('conflict', 'root', event);
   });
 
-  function set(path, absPath, value, mimeType) {
-    var moduleName = extractModuleName(absPath);
+  function set(moduleName, path, absPath, value, mimeType) {
     if(util.isDir(absPath)) {
       fireError(absPath, 'attempt to set a value to a directory '+absPath);
       return;
@@ -4892,7 +5112,12 @@ define('lib/baseClient',['./sync', './store', './util', './validate', './wireCli
     fireModuleEvent('change', 'root', changeEvent);
   }
 
+  /** FROM HERE ON PUBLIC INTERFACE **/
+
   var BaseClient = function(moduleName, isPublic) {
+    if(! moduleName) {
+      throw new Error("moduleName is required");
+    }
     this.moduleName = moduleName, this.isPublic = isPublic;
     if(! moduleEvents[moduleName]) {
       moduleEvents[moduleName] = {};
@@ -4940,7 +5165,7 @@ define('lib/baseClient',['./sync', './store', './util', './validate', './wireCli
     //
     //   The following origins are defined,
     //
-    //   tab - this event was generated from the same *browser tab* or window that received the event
+    //   window - this event was generated from the same *browser tab* or window that received the event
     //   device - this event was generated from the same *app*, but a differnent tab or window
     //   remote - this event came from the *remotestorage server*. that means another app or the same app on another device caused the event.
     //
@@ -4954,7 +5179,7 @@ define('lib/baseClient',['./sync', './store', './util', './validate', './wireCli
     //   >     console.log(event.origin + ' removed ' + event.path + ':', event.oldValue, '->', undefined);
     //   >   }
     //   > });
-    //   
+    //
 
     makePath: function(path) {
       var base = (this.moduleName == 'root' ?
@@ -4981,22 +5206,38 @@ define('lib/baseClient',['./sync', './store', './util', './validate', './wireCli
       }
     },
 
+    // Method: lastUpdateOf
+    // Get the time a node was last updated.
+    //
+    // Parameters:
+    //   path - Relative path from the module root
+    //
+    // Returns:
+    //   a Number - when the node exists
+    //   null - when the node doesn't exist
+    //
+    // The timestamp is represented as Number of milliseconds.
+    // Use this snippet to get a Date object from it
+    //   > var timestamp = client.lastUpdateOf('path/to/node');
+    //   > // (normally you should check that 'timestamp' isn't null now)
+    //   > new Date(timestamp);
+    //
     lastUpdateOf: function(path) {
       var absPath = this.makePath(path);
       var node = store.getNode(absPath);
       return node ? node.timestamp : null;
     },
 
-    //  
+    //
     // Method: on
-    //  
+    //
     // Install an event handler for the given type.
-    // 
+    //
     // Parameters:
     //   eventType - type of event, either "change" or "error"
     //   handler   - event handler function
     //   context   - (optional) context to bind handler to
-    //  
+    //
     on: function(eventType, handler, context) {
       this.events.on(eventType, util.bind(handler, context));
     },
@@ -5048,7 +5289,7 @@ define('lib/baseClient',['./sync', './store', './util', './validate', './wireCli
         if(data && !(typeof(data) === 'object' && Object.keys(data).length === 0)) {
           cb(data);
         } else {
-          sync.syncOne(absPath, function(node, data) {
+          sync.syncOne(absPath, function(err, node, data) {
             cb(data);
           });
         }
@@ -5078,7 +5319,7 @@ define('lib/baseClient',['./sync', './store', './util', './validate', './wireCli
       this.ensureAccess('r');
       var absPath = this.makePath(path);
       if(callback) {
-        sync.fetchNow(absPath, function(err, node) {
+        sync.syncOne(absPath, function(err, node) {
           var data = store.getNodeData(absPath);
           var arr = [];
           for(var i in data) {
@@ -5131,12 +5372,12 @@ define('lib/baseClient',['./sync', './store', './util', './validate', './wireCli
     },
 
     //
-    // Method: getDocument
+    // Method: getFile
     //
-    // Get the document at the given path. A Document is raw data, as opposed to
+    // Get the file at the given path. A file is raw data, as opposed to
     // a JSON object (use <getObject> for that).
     //
-    // Except for the return value structure, getDocument works exactly like
+    // Except for the return value structure, getFile works exactly like
     // getObject.
     //
     // Parameters:
@@ -5144,21 +5385,21 @@ define('lib/baseClient',['./sync', './store', './util', './validate', './wireCli
     //   callback - see getObject
     //   context  - see getObject
     //
-    // Returns:
-    //   An object,
+    // Returned object:
     //   mimeType - String representing the MIME Type of the document.
-    //   data     - Raw data of the document.
+    //   data     - Raw data of the document (either a string or an ArrayBuffer)
     //
-    getDocument: function(path, callback, context) {
+    getFile: function(path, callback, context) {
       this.ensureAccess('r');
       var absPath = this.makePath(path);
 
       function makeResult() {
-        var node = store.getNode(absPath);
-        if(node) {
+        var data = store.getNodeData(absPath);
+        if(data) {
+          var node = store.getNode(absPath);
           return {
             mimeType: node.mimeType,
-            data: store.getNodeData(absPath)
+            data: data
           };
         } else {
           return null;
@@ -5181,6 +5422,13 @@ define('lib/baseClient',['./sync', './store', './util', './validate', './wireCli
       }
     },
 
+    // Method: getDocument
+    //
+    // DEPRECATED in favor of <getFile>
+    getDocument: function() {
+      util.deprecate('getDocument', 'getFile');
+      return this.getFile.apply(this, arguments);
+    },
 
     //
     // Method: remove
@@ -5195,8 +5443,37 @@ define('lib/baseClient',['./sync', './store', './util', './validate', './wireCli
     remove: function(path, callback, context) {
       this.ensureAccess('w');
       var absPath = this.makePath(path);
-      set(path, absPath, undefined);
+      set(this.moduleName, path, absPath, undefined);
       sync.syncOne(absPath, util.bind(callback, context));
+    },
+
+    // Method: saveObject
+    //
+    // Save a typed JSON object.
+    // This only works for objects with a @type attribute corresponding to a schema
+    // that has been declared via <declareType> and a ID attribute declared within
+    // that schema.
+    //
+    // For details on using saveObject and typed JSON objects,
+    // see <Working with schemas>.
+    //
+    // Parameters:
+    //   object - a typed JSON object
+    //   callback - (optional) callback
+    //   context - (optional)
+    //
+    //
+    saveObject: function(object, callback, context) {
+      var type = object['@type'];
+      var alias = this.resolveTypeAlias(type);
+      var idKey = this.resolveIdKey(type);
+      if(! idKey) {
+        throw "Invalid typed JSON object! ID attribute could not be resolved.";
+      }
+      if(! object[idKey]) {
+        object[idKey] = this.uuid();
+      }
+      return this.storeObject(alias, object[idKey], object, callback, context);
     },
 
     //
@@ -5210,7 +5487,7 @@ define('lib/baseClient',['./sync', './store', './util', './validate', './wireCli
     //   path     - path relative to the module root.
     //   object   - an object to be saved to the given node. It must be serializable as JSON.
     //   callback - (optional) called when the change has been propagated to remotestorage
-    //   context  - (optional) 
+    //   context  - (optional)
     //
     // Returns:
     //   An array of errors, when the validation failed, otherwise null.
@@ -5226,8 +5503,8 @@ define('lib/baseClient',['./sync', './store', './util', './validate', './wireCli
     //   aims to use <JSON-LD at http://json-ld.org/>.
     //   A first step in that direction, is to add a *@type attribute* to all
     //   JSON data put into remotestorage.
-    //   Now that is what the *type* is for. 
-    //   
+    //   Now that is what the *type* is for.
+    //
     //   Within remoteStorage.js, @type values are built using three components:
     //     https://remotestoragejs.com/spec/modules/ - A prefix to guarantee unqiueness
     //     the module name     - module names should be unique as well
@@ -5240,47 +5517,89 @@ define('lib/baseClient',['./sync', './store', './util', './validate', './wireCli
     // How to define types?:
     //
     //   See <declareType> or the calendar module (src/modules/calendar.js) for examples.
-    // 
+    //
     storeObject: function(type, path, obj, callback, context) {
       this.ensureAccess('w');
+      if(typeof(path) !== 'string') {
+        throw "given path must be a string (got: " + typeof(path) + ")";
+      }
       if(typeof(obj) !== 'object') {
-        throw "storeObject needs to get an object as value!";
+        throw "given object must be an object (got: " + typeof(obj) + ")";
       }
       obj['@type'] = this.resolveType(type);
 
       var errors = this.validateObject(obj);
 
+      if(util.isDir(path)) {
+        throw new Error("Can't store directory node");
+      }
+
       if(errors) {
-        console.error("Error saving this ", type, ": ", obj, errors);
+        logger.error("Error saving this ", type, ": ", obj, errors);
         return errors;
       } else {
         var absPath = this.makePath(path);
-        set(path, absPath, obj, 'application/json');
+        set(this.moduleName, path, absPath, obj, 'application/json');
         sync.syncOne(absPath, util.bind(callback, context));
         return null;
       }
     },
 
     //
-    // Method: storeDocument
+    // Method: storeFile
     //
     // Store raw data at a given path. Triggers synchronization.
     //
     // Parameters:
     //   mimeType - MIME media type of the data being stored
     //   path     - path relative to the module root. MAY NOT end in a forward slash.
-    //   data     - string of raw data to store
+    //   data     - string or ArrayBuffer of raw data to store
     //   callback - (optional) called when the change has been propagated to remotestorage
     //   context  - (optional)
     //
     // The given mimeType will later be returned, when retrieving the data
-    // using getDocument.
+    // using <getFile>.
     //
-    storeDocument: function(mimeType, path, data, callback, context) {
+    // Example (UTF-8 data):
+    //   (start code)
+    //   client.storeFile('text/html', 'index.html', '<h1>Hello World!</h1>');
+    //   (end code)
+    //
+    // Example (Binary data):
+    //   (start code)
+    //   // MARKUP:
+    //   <input type="file" id="file-input">
+    //   // CODE:
+    //   var input = document.getElementById('file-input');
+    //   var file = input.files[0];
+    //   var fileReader = new FileReader();
+    //
+    //   fileReader.onload = function() {
+    //     client.storeFile(file.type, file.name, fileReader.result);
+    //   }
+    //
+    //   fileReader.readAsArrayBuffer(file);
+    //   (end code)
+    //
+    storeFile: function(mimeType, path, data, callback, context) {
       this.ensureAccess('w');
       var absPath = this.makePath(path);
-      set(path, absPath, data, mimeType);
+      if(util.isDir(path)) {
+        throw new Error("Can't store directory node");
+      }
+      if(typeof(data) !== 'string' && !(data instanceof ArrayBuffer)) {
+        throw new Error("storeFile received " + typeof(data) + ", but expected a string or an ArrayBuffer!");
+      }
+      set(this.moduleName, path, absPath, data, mimeType);
       sync.syncOne(absPath, util.bind(callback, context));
+    },
+
+    // Method: storeDocument
+    //
+    // DEPRECATED in favor of <storeFile>
+    storeDocument: function() {
+      util.deprecate('storeDocument', 'storeFile');
+      return this.storeFile.apply(this, arguments);
     },
 
     getStorageHref: function() {
@@ -5303,9 +5622,6 @@ define('lib/baseClient',['./sync', './store', './util', './validate', './wireCli
       var base = this.getStorageHref();
       if(! base) {
         return null;
-      }
-      if(base.substr(-1) != '/') {
-        base = base + '/';
       }
       return base + this.makePath(path);
     },
@@ -5347,12 +5663,17 @@ define('lib/baseClient',['./sync', './store', './util', './validate', './wireCli
     // Remove force flags from given node.
     //
     // See <sync> for details.
-    // 
+    //
     release: function(path) {
       var absPath = this.makePath(path);
       store.setNodeForce(absPath, false, false);
     },
 
+    // Method: hasDiff
+    //
+    // Returns true if the node at the given path has a diff set.
+    // Having a "diff" means, that the node or one of it's descendants
+    // has been updated since it was last pulled from remotestorage.
     hasDiff: function(path) {
       var absPath = this.makePath(path);
       if(util.isDir(absPath)) {
@@ -5366,7 +5687,9 @@ define('lib/baseClient',['./sync', './store', './util', './validate', './wireCli
     /**** TYPE HANDLING ****/
 
     types: {},
+    typeAliases: {},
     schemas: {},
+    typeIdKeys: {},
 
     resolveType: function(alias) {
       var type = this.types[alias];
@@ -5378,6 +5701,10 @@ define('lib/baseClient',['./sync', './store', './util', './validate', './wireCli
       return type;
     },
 
+    resolveTypeAlias: function(type) {
+      return this.typeAliases[type];
+    },
+
     resolveSchema: function(type) {
       var schema = this.schemas[type];
       if(! schema) {
@@ -5385,6 +5712,42 @@ define('lib/baseClient',['./sync', './store', './util', './validate', './wireCli
         logger.error("WARNING: can't find schema for type: ", type);
       }
       return schema;
+    },
+
+    resolveIdKey: function(type) {
+      return this.typeIdKeys[type];
+    },
+
+    // Method: buildObject
+    //
+    // Build an object of the designated type.
+    //
+    // Parameters:
+    //   alias - a type alias, registered via <declareType>
+    //
+    // If the associated schema specifies a top-level attribute with "format":"id",
+    // and the given attributes don't contain that key, a UUID is generated for
+    // that column.
+    //
+    // Example:
+    //   (start code)
+    //   var drink = client.buildObject('drink');
+    //   client.validateObject(drink); // validates against schema declared for "drink"
+    //   (end code)
+    //
+    buildObject: function(alias, attributes) {
+      var object = {}
+      var type = this.resolveType(alias);
+      var idKey = this.resolveIdKey(type);
+      if(! attributes) {
+        attributes = {};
+      }
+
+      object['@type'] = type;
+      if(idKey && ! attributes[idKey]) {
+        object[idKey] = this.uuid();
+      }
+      return util.extend(object, attributes || {});
     },
 
     // Method: declareType
@@ -5418,7 +5781,7 @@ define('lib/baseClient',['./sync', './store', './util', './validate', './wireCli
     //   // [{ "property": "name",
     //   //    "message": "is missing and it is required" }]
     //
-    //   
+    //
     //   (end code)
     declareType: function(alias, type, schema) {
       if(this.types[alias]) {
@@ -5437,7 +5800,17 @@ define('lib/baseClient',['./sync', './store', './util', './validate', './wireCli
         schema['extends'] = this.schemas[extendedType];
       }
 
+      if(schema.properties) {
+        for(var key in schema.properties) {
+          if(schema.properties[key].format == 'id') {
+            this.typeIdKeys[type] = key;
+            break;
+          }
+        }
+      }
+
       this.types[alias] = type;
+      this.typeAliases[type] = alias;
       this.schemas[type] = schema;
     },
 
@@ -5469,8 +5842,17 @@ define('lib/baseClient',['./sync', './store', './util', './validate', './wireCli
       var result = validate(object, schema);
 
       return result.valid ? null : result.errors;
+    },
+
+    // Method: uuid
+    //
+    // Generates a Universally Unique IDentifuer and returns it.
+    //
+    // The UUID is prefixed with the string 'uuid:', to become a valid URI.
+    uuid: function() {
+      return 'uuid:' + MathUUID.uuid();
     }
-    
+
   };
 
   return BaseClient;
@@ -5493,7 +5875,7 @@ define('lib/foreignClient',['./util', './baseClient', './getputdelete', './store
 
   /*
     Class: ForeignClient
-    
+
     A modified <BaseClient>, to query other people's storage.
    */
 
@@ -5513,7 +5895,7 @@ define('lib/foreignClient',['./util', './baseClient', './getputdelete', './store
     knownClients[userAddress] = this;
     util.bindAll(this);
   };
-  
+
   ForeignClient.prototype = {
 
     // Method: getPublished
@@ -5561,7 +5943,7 @@ define('lib/foreignClient',['./util', './baseClient', './getputdelete', './store
             var path = '/' + moduleName + '/' + key;
             this.getObject(path, function(object) {
               objects[path] = object;
-                
+
               loadOne.call(this);
             }.bind(this));
           } else {
@@ -5630,18 +6012,18 @@ define('remoteStorage',[
   './lib/baseClient'
 ], function(require, widget, store, sync, wireClient, nodeConnect, util, webfinger, foreignClient, BaseClient) {
 
-  
+
 
   var claimedModules = {}, modules = {}, moduleNameRE = /^[a-z]+$/;
 
   var logger = util.getLogger('base');
 
   // Namespace: remoteStorage
-  var remoteStorage =  { 
+  var remoteStorage =  {
 
     //
     // Method: defineModule
-    // 
+    //
     // Define a new module, with given name.
     // Module names MUST be unique. The given builder will be called
     // immediately, with two arguments, which are both instances of
@@ -5650,7 +6032,7 @@ define('remoteStorage',[
     // be read by any client (not just an authenticated one), while
     // it can only be written by an authenticated client with read-write
     // access claimed on it.
-    // 
+    //
     // The builder is expected to return an object, as described under
     // <getModuleInfo>.
     //
@@ -5669,7 +6051,7 @@ define('remoteStorage',[
     //
     //     return {
     //       exports: {
-    //   
+    //
     //         addBeer: function(name) {
     //           privateClient.storeObject('beer', nameToKey(name), {
     //             name: name,
@@ -5698,7 +6080,7 @@ define('remoteStorage',[
     //
     //   remoteStorage.claimAccess('beers', 'rw');
     //
-    //   remoteStorage.displayWidget(/* see documentation */)
+    //   remoteStorage.displayWidget(/* see documentation */);
     //
     //   remoteStorage.addBeer('<replace-with-favourite-beer-kind>');
     //
@@ -5765,25 +6147,25 @@ define('remoteStorage',[
     //
     //
     //   Some of the dataHints used are:
-    //  
+    //
     //     objectType <type> - description of an object
     //                         type implemented by the module
     //     "objectType message" - (example)
-    //  
+    //
     //     <attributeType> <objectType>#<attribute> - description of an attribute
-    //  
+    //
     //     "string message#subject" - (example)
-    //  
+    //
     //     directory <path> - description of a path's purpose
-    //  
+    //
     //     "directory documents/notes/" - (example)
-    //  
+    //
     //     item <path> - description of a specific item
-    //  
+    //
     //     "item documents/notes/calendar" - (example)
-    //  
+    //
     //   Hope this helps.
-    // 
+    //
     getModuleInfo: function(moduleName) {
       return modules[moduleName];
     },
@@ -5809,7 +6191,7 @@ define('remoteStorage',[
     // Parameters:
     //   moduleName - name of the module. For a list of defined modules, use <getModuleList>
     //   claim      - permission to claim, either *r* (read-only) or *rw* (read-write)
-    // 
+    //
     // Example:
     //   > remoteStorage.claimAccess('contacts', 'r');
     //
@@ -5830,14 +6212,14 @@ define('remoteStorage',[
     //   > });
     //
     claimAccess: function(moduleName, mode) {
-      
+
       var modeTestRegex = /^rw?$/;
       function testMode(moduleName, mode) {
         if(!modeTestRegex.test(mode)) {
           throw "Claimed access to module '" + moduleName + "' but mode not correctly specified ('" + mode + "').";
         }
       }
-      
+
       var moduleObj;
       if(typeof moduleName === 'object') {
         moduleObj = moduleName;
@@ -5882,25 +6264,25 @@ define('remoteStorage',[
     },
 
     getBearerToken: function() {
-      wireClient.getBearerToken();
+      return wireClient.getBearerToken();
     },
 
     disconnectRemote : wireClient.disconnectRemote,
 
-    // 
+    //
     // Method: flushLocal()
-    // 
+    //
     // Forget this ever happened.
-    // 
+    //
     // Delete all locally stored data.
     // This doesn't clear localStorage, just removes everything
     // remoteStorage.js saved there. Other data your app might
     // have put into localStorage stays there.
-    // 
+    //
     // Call this method to implement "logout".
     //
     // If you are using the widget (which you should!), you don't need this.
-    // 
+    //
     // Example:
     //   > remoteStorage.flushLocal();
     //
@@ -5920,7 +6302,7 @@ define('remoteStorage',[
     // Parameters:
     //   path - relative path from the storage root.
     //   callback - (optional) callback to be notified when synchronization has finished or failed.
-    // 
+    //
     // Example:
     //   > remoteStorage.money.on('change', function(changeEvent) {
     //   >   // handle change event (update UI etc)
@@ -5949,11 +6331,11 @@ define('remoteStorage',[
     },
 
 
-    //  
+    //
     // Method: displayWidget
     //
     // Add the remotestorage widget to the page.
-    // 
+    //
     // Parameters:
     //   domID - DOM ID of element to attach widget elements to
     //   options - Options, as described below.
@@ -5978,7 +6360,7 @@ define('remoteStorage',[
     //    (using the same markup as above)
     //
     //    > remoteStorage.displayWidget('remotestorage-connect', { authDialog: 'popup' });
-    //    
+    //
     displayWidget    : widget.display,
 
     //
@@ -6075,6 +6457,1836 @@ define('remoteStorage',[
   return remoteStorage;
 });
 
+define('modules/root',['../remoteStorage'], function(remoteStorage) {
+
+
+  remoteStorage.defineModule('public', function(client) {
+    function getPublicItems() {
+      return client.getObject("publishedItems");
+    }
+
+    return {
+      exports: {
+        getPublicItems: getPublicItems,
+        getObject: client.getObject
+      }
+    }
+  });
+
+  remoteStorage.defineModule('root', function(myPrivateBaseClient, myPublicBaseClient) {
+    function setOnChange(cb) {
+      myPrivateBaseClient.on('change', cb);
+      myPublicBaseClient.on('change', cb);
+    }
+
+    function addToPublicItems(path) {
+      var data = myPublicBaseClient.getObject("publishedItems");
+      if(path[0] == "/")
+        path = path.substr(1);
+
+      if(data) {
+        if(data.indexOf(path) == -1)
+        {
+          data.unshift(path);
+        }
+      } else {
+        data = [];
+        data.push(path);
+      }
+      myPublicBaseClient.storeObject('array', "publishedItems", data);
+    }
+
+    function removeFromPublicItems(path) {
+      var data = myPublicBaseClient.getObject("publishedItems");
+      if(path[0] == "/")
+        path = path.substr(1);
+      if(data) {
+        if(data.indexOf(path) != -1) {
+          data.pop(path);
+        }
+      } else {
+        data = [];
+      }
+      myPublicBaseClient.storeObject('array', "publishedItems", data);
+    }
+
+    function publishObject(path) {
+      if(pathIsPublic(path))
+        return 'Object has already been made public';
+
+      var data = myPrivateBaseClient.getObject(path);
+      var publicPath = "/public" + path;
+      addToPublicItems(publicPath);
+      myPrivateBaseClient.remove(path);
+      myPrivateBaseClient.storeObject(data['@type'], publicPath, data);
+
+      return "Object " + path + " has been published to " + publicPath;
+    }
+
+    function archiveObject(path) {
+      if(!pathIsPublic(path))
+        return 'Object has already been made private';
+
+      var data = myPrivateBaseClient.getObject(path);
+      var privatePath = path.substring(7, path.length);
+      removeFromPublicItems(path);
+      myPrivateBaseClient.remove(path);
+      myPrivateBaseClient.storeObject(data['@type'], privatePath, data);
+
+      return "Object " + path + " has been archived to " + privatePath;
+    }
+
+    function pathIsPublic(path) {
+      if(path.substring(0, 8) == "/public/")
+        return true;
+      return false;
+    }
+
+    function getClient(path) {
+      if(!pathIsPublic(path))
+        return myPrivateBaseClient;
+      return myPublicBaseClient;
+    }
+
+    function hasDiff(path) {
+      var client = getClient(path);
+      return client.hasDiff(path);
+    }
+
+    /** getObject(path, [callback, [context]]) - get the object at given path
+     **
+     ** If the callback is NOT given, getObject returns the object at the given
+     ** path from local cache:
+     **
+     **   remoteStorage.root.getObject('/todo/today')
+     **   // -> { items: ['sit in the sun', 'watch the clouds', ...], ... }
+     **
+     ** If the callback IS given, getObject returns undefined and will at some
+     ** point in the future, when the object's data has been pulled, call
+     ** call the given callback.
+     **
+     **   remoteStorage.root.getObject('/todo/tomorrow', function(list) {
+     **     // do something
+     **   });
+     **
+     ** If both callback and context are given, the callback will be bound to
+     ** the given context object:
+     **
+     **  remoteStorage.root.getObject('/todo/next-months', function(list) {
+     **      for(var i=0;i<list.items.length;i++) {
+     **        this.addToBacklog(list.items[i]);
+     **      }// ^^ context
+     **    },
+     **    this // < context.
+     **  );
+     **
+     **/
+    function getObject(path, cb, context) {
+      return myPrivateBaseClient.getObject(path, cb, context);
+    }
+
+    function getDocument(path, cb, context) {
+      return myPrivateBaseClient.getDocument(path, cb, context);
+    }
+
+    function setDocument(mimeType, path, data, cb, context) {
+      return myPrivateBaseClient.storeDocument(mimeType, path, data, cb, context);
+    }
+
+    /** setObject(type, path, object) - store the given object at the given path.
+     **
+     ** The given type should be a string and is used to build a JSON-LD @type
+     ** URI to store along with the given object.
+     **
+     **/
+    function setObject(type, path, obj) {
+      if(typeof(obj) === 'object') {
+        myPrivateBaseClient.storeObject(type, path, obj);
+      } else {
+        myPrivateBaseClient.storeDocument(type, path, obj);
+      }
+    }
+
+    /** removeObject(path) - remove node at given path
+     **/
+    function removeObject(path) {
+      myPrivateBaseClient.remove(path);
+    }
+
+    /** getListing(path, [callback, [context]]) - get a listing of the given
+     **                                           path's child nodes.
+     **
+     ** Callback and return semantics are the same as for getObject.
+     **/
+    function getListing(path, cb, context) {
+      if(! path) {
+        throw "Path is required"
+      }
+      return myPrivateBaseClient.getListing(path, cb, context);
+    }
+
+    function on(eventName, callback) {
+      myPrivateBaseClient.on(eventName, callback);
+      myPublicBaseClient.on(eventName, callback);
+    }
+
+    return {
+      exports: {
+        on: on,
+        use: function() {
+          myPrivateBaseClient.use.apply(myPrivateBaseClient, arguments);
+        },
+        release: function() {
+          myPrivateBaseClient.release.apply(myPrivateBaseClient, arguments);
+        },
+        getListing: getListing,
+        getObject: getObject,
+        setObject: setObject,
+        getDocument: getDocument,
+        setDocument: setDocument,
+        removeObject: removeObject,
+        archiveObject: archiveObject,
+        publishObject: publishObject,
+        setOnChange: setOnChange,
+        hasDiff: hasDiff,
+        syncOnce: myPrivateBaseClient.syncOnce.bind(myPrivateBaseClient)
+      }
+    }
+  });
+
+  return remoteStorage.root;
+
+});
+
+define('modules/calendar',['../remoteStorage'], function(remoteStorage) {
+
+  var moduleName = 'calendar';
+
+  remoteStorage.defineModule(moduleName, function(client) {
+
+    client.declareType('event', 'http://json-schema.org/calendar', {
+	    "description": "A representation of an event",
+	    "type": "object",
+	    "properties": {
+        "id": {
+          "format": "id",
+          "type": "string",
+          "description": "Unique identifier for this event"
+        },
+		    "dtstart": {
+			    "format": "date-time",
+			    "type": "string",
+			    "description": "Event starting time",
+			    "required": true
+		    },
+		    "dtend": {
+			    "format": "date-time",
+			    "type": "string",
+			    "description": "Event ending time"
+		    },
+		    "summary": { "type": "string", "required": true },
+		    "location": { "type": "string" },
+		    "url": { "type": "string", "format": "uri" },
+		    "duration": {
+			    "format": "time",
+			    "type": "string",
+			    "description": "Event duration"
+		    },
+		    "rdate": {
+			    "format": "date-time",
+			    "type": "string",
+			    "description": "Recurrence date"
+		    },
+		    "rrule": {
+			    "type": "string",
+			    "description": "Recurrence rule"
+		    },
+		    "category": { "type": "string" },
+		    "description": { "type": "string" },
+		    "geo": { "$ref": "http: //json-schema.org/geo" }
+	    }
+    });
+
+    //client.use('');
+
+    function getEventsForDay(day) {
+      var ids = client.getListing(day+'/');
+      var list = [];
+      for(var i=0; i<ids.length; i++) {
+        var obj = client.getObject(day+'/'+ids[i]);
+        list.push({'itemId': ids[i], 'itemValue': obj.summary});
+      }
+      return list;
+    }
+
+    function addEvent(itemId, day, value) {
+      var mdy = day.split('_');
+      client.storeObject('event', day+'/'+itemId, {
+        summary: value,
+        dtstart: new Date(mdy[2], mdy[0], mdy[1]).toISOString()
+      });
+    }
+    function removeEvent(itemId, day) {
+      client.remove(day+'/'+itemId);
+    }
+    return {
+      exports: {
+        getEventsForDay: getEventsForDay,
+        addEvent: addEvent,
+        removeEvent: removeEvent
+      }
+    };
+  });
+
+  return remoteStorage[moduleName];
+
+});
+
+/**
+ ** VCF - Parser for the vcard format.
+ **
+ ** This is purely a vCard 4.0 implementation, as described in RFC 6350.
+ **
+ ** The generated VCard object roughly corresponds to the JSON representation
+ ** of a hCard, as described here: http://microformats.org/wiki/jcard
+ ** (Retrieved May 17, 2012)
+ **
+ ** (c) 2012 Niklas Cathor <niklas@unhosted.org> https://github.com/nilclass
+ ** Available under MIT License terms, for details see LICENSE file.
+ **
+ **/
+
+define('modules/deps/vcf',[], function() {
+
+  var VCF;
+
+  var multivaluedKeys = {
+    email: true,
+    tel: true,
+    geo: true,
+    title: true,
+    role: true,
+    logo: true,
+    org: true,
+    member: true,
+    related: true,
+    categories: true,
+    note: true
+  };
+
+  function addAttribute(vcard, key, value) {
+    if(! value) {
+      return;
+    }
+    if(multivaluedKeys[key]) {
+      if(vcard[key]) {
+        vcard[key].push(value)
+      } else {
+        vcard[key] = [value];
+      }
+    } else {
+      vcard[key] = value;
+    }
+  }
+
+  VCF = {
+
+    simpleKeys: [
+      'VERSION',
+      'FN', // 6.2.1
+      'PHOTO', // 6.2.4 (we don't care about URIs [yet])
+      'GEO', // 6.5.2 (SHOULD also b a URI)
+      'TITLE', // 6.6.1
+      'ROLE', // 6.6.2
+      'LOGO', // 6.6.3 (also [possibly data:] URI)
+      'MEMBER', // 6.6.5
+      'NOTE', // 6.7.2
+      'PRODID', // 6.7.3
+      'SOUND', // 6.7.5
+      'UID', // 6.7.6
+    ],
+    csvKeys: [
+      'NICKNAME', // 6.2.3
+      'CATEGORIES', // 6.7.1
+    ],
+    dateAndOrTimeKeys: [
+      'BDAY',        // 6.2.5
+      'ANNIVERSARY', // 6.2.6
+      'REV', // 6.7.4
+    ],
+
+    // parses the given input, constructing VCard objects.
+    // if the input contains multiple (properly seperated) vcards,
+    // the callback may be called multiple times, with one vcard given
+    // each time.
+    // The third argument specifies the context in which to evaluate
+    // the given callback.
+    parse: function(input, callback, context) {
+      var vcard = null;
+
+      if(! context) {
+        context = this;
+      }
+
+      this.lex(input, function(key, value, attrs) {
+        function setAttr(val) {
+          if(vcard) {
+            addAttribute(vcard, key.toLowerCase(), val);
+          }
+        }
+        if(key == 'BEGIN') {
+          vcard = {};
+        } else if(key == 'END') {
+          if(vcard) {
+            callback.apply(context, [vcard]);
+            vcard = null;
+          }
+
+        } else if(this.simpleKeys.indexOf(key) != -1) {
+          setAttr(value);
+
+        } else if(this.csvKeys.indexOf(key) != -1) {
+          setAttr(value.split(','));
+
+        } else if(this.dateAndOrTimeKeys.indexOf(key) != -1) {
+          if(attrs.VALUE == 'text') {
+            // times can be expressed as "text" as well,
+            // e.g. "ca 1800", "next week", ...
+            setAttr(value);
+          } else if(attrs.CALSCALE && attrs.CALSCALE != 'gregorian') {
+            // gregorian calendar is the only calscale mentioned
+            // in RFC 6350. I do not intend to support anything else
+            // (yet).
+          } else {
+            // FIXME: handle TZ attribute.
+            setAttr(this.parseDateAndOrTime(value));
+          }
+
+        } else if(key == 'N') { // 6.2.2
+          setAttr(this.parseName(value));
+
+        } else if(key == 'GENDER') { // 6.2.7
+          setAttr(this.parseGender(value));
+
+        } else if(key == 'TEL') { // 6.4.1
+          setAttr({
+            type: (attrs.TYPE || 'voice'),
+            pref: attrs.PREF,
+            value: value
+          });
+
+        } else if(key == 'EMAIL') { // 6.4.2
+          setAttr({
+            type: attrs.TYPE,
+            pref: attrs.PREF,
+            value: value
+          });
+
+        } else if(key == 'IMPP') { // 6.4.3
+          // RFC 6350 doesn't define TYPEs for IMPP addresses.
+          // It just seems odd to me to have multiple email addresses and phone numbers,
+          // but not multiple IMPP addresses.
+          setAttr({ value: value });
+
+        } else if(key == 'LANG') { // 6.4.4
+          setAttr({
+            type: attrs.TYPE,
+            pref: attrs.PREF,
+            value: value
+          });
+
+        } else if(key == 'TZ') { // 6.5.1
+          // neither hCard nor jCard mention anything about the TZ
+          // property, except that it's singular (which it is *not* in
+          // RFC 6350).
+          // using compound representation.
+          if(attrs.VALUE == 'utc-offset') {
+            setAttr({ 'utc-offset': this.parseTimezone(value) });
+          } else {
+            setAttr({ name: value });
+          }
+
+        } else if(key == 'ORG') { // 6.6.4
+          var parts = value.split(';');
+          setAttr({
+            'organization-name': parts[0],
+            'organization-unit': parts[1]
+          });
+
+        } else if(key == 'RELATED') { // 6.6.6
+          setAttr({
+            type: attrs.TYPE,
+            pref: attrs.PREF,
+            value: attrs.VALUE
+          });
+
+        } else {
+          console.log('WARNING: unhandled key: ', key);
+        }
+      });
+    },
+
+    nameParts: [
+      'family-name', 'given-name', 'additional-name',
+      'honorific-prefix', 'honorific-suffix'
+    ],
+
+    parseName: function(name) { // 6.2.2
+      var parts = name.split(';');
+      var n = {};
+      for(var i in parts) {
+        if(parts[i]) {
+          n[this.nameParts[i]] = parts[i].split(',');
+        }
+      }
+      return n;
+    },
+
+    /**
+     * The representation of gender for hCards (and hence their JSON
+     * representation) is undefined, as hCard is based on RFC 2436, which
+     * doesn't define the GENDER attribute.
+     * This method uses a compound representation.
+     *
+     * Examples:
+     *   "GENDER:M"              -> {"sex":"male"}
+     *   "GENDER:M;man"          -> {"sex":"male","identity":"man"}
+     *   "GENDER:F;girl"         -> {"sex":"female","identity":"girl"}
+     *   "GENDER:M;girl"         -> {"sex":"male","identity":"girl"}
+     *   "GENDER:F;boy"          -> {"sex":"female","identity":"boy"}
+     *   "GENDER:N;woman"        -> {"identity":"woman"}
+     *   "GENDER:O;potted plant" -> {"sex":"other","identity":"potted plant"}
+     */
+    parseGender: function(value) { // 6.2.7
+      var gender = {};
+      var parts = value.split(';');
+      switch(parts[0]) {
+      case 'M':
+        gender.sex = 'male';
+        break;
+      case 'F':
+        gender.sex = 'female';
+        break;
+      case 'O':
+        gender.sex = 'other';
+      }
+      if(parts[1]) {
+        gender.identity = parts[1];
+      }
+      return gender;
+    },
+
+    /** Date/Time parser.
+     *
+     * This implements only the parts of ISO 8601, that are
+     * allowed by RFC 6350.
+     * Paranthesized examples all represent (parts of):
+     *   31st of January 1970, 23 Hours, 59 Minutes, 30 Seconds
+     **/
+
+    /** DATE **/
+
+    // [ISO.8601.2004], 4.1.2.2, basic format:
+    dateRE: /^(\d{4})(\d{2})(\d{2})$/, // (19700131)
+
+    // [ISO.8601.2004], 4.1.2.3 a), basic format:
+    dateReducedARE: /^(\d{4})\-(\d{2})$/, // (1970-01)
+
+    // [ISO.8601.2004], 4.1.2.3 b), basic format:
+    dateReducedBRE: /^(\d{4})$/, // (1970)
+
+    // truncated representation from [ISO.8601.2000], 5.3.1.4.
+    // I don't have access to that document, so relying on examples
+    // from RFC 6350:
+    dateTruncatedMDRE: /^\-{2}(\d{2})(\d{2})$/, // (--0131)
+    dateTruncatedDRE: /^\-{3}(\d{2})$/, // (---31)
+
+    /** TIME **/
+
+    // (Note: it is unclear to me which of these are supposed to support
+    //        timezones. Allowing them for all. If timezones are ommitted,
+    //        defaulting to UTC)
+
+    // [ISO.8601.2004, 4.2.2.2, basic format:
+    timeRE: /^(\d{2})(\d{2})(\d{2})([+\-]\d+|Z|)$/, // (235930)
+    // [ISO.8601.2004, 4.2.2.3 a), basic format:
+    timeReducedARE: /^(\d{2})(\d{2})([+\-]\d+|Z|)$/, // (2359)
+    // [ISO.8601.2004, 4.2.2.3 b), basic format:
+    timeReducedBRE: /^(\d{2})([+\-]\d+|Z|)$/, // (23)
+    // truncated representation from [ISO.8601.2000], see above.
+    timeTruncatedMSRE: /^\-{2}(\d{2})(\d{2})([+\-]\d+|Z|)$/, // (--5930)
+    timeTruncatedSRE: /^\-{3}(\d{2})([+\-]\d+|Z|)$/, // (---30)
+
+    parseDate: function(data) {
+      var md;
+      var y, m, d;
+      if((md = data.match(this.dateRE))) {
+        y = md[1]; m = md[2]; d = md[3];
+      } else if((md = data.match(this.dateReducedARE))) {
+        y = md[1]; m = md[2];
+      } else if((md = data.match(this.dateReducedBRE))) {
+        y = md[1];
+      } else if((md = data.match(this.dateTruncatedMDRE))) {
+        m = md[1]; d = md[2];
+      } else if((md = data.match(this.dateTruncatedDRE))) {
+        d = md[1];
+      } else {
+        console.error("WARNING: failed to parse date: ", data);
+        return null;
+      }
+      var dt = new Date(0);
+      if(typeof(y) != 'undefined') { dt.setUTCFullYear(y); }
+      if(typeof(m) != 'undefined') { dt.setUTCMonth(m - 1); }
+      if(typeof(d) != 'undefined') { dt.setUTCDate(d); }
+      return dt;
+    },
+
+    parseTime: function(data) {
+      var md;
+      var h, m, s, tz;
+      if((md = data.match(this.timeRE))) {
+        h = md[1]; m = md[2]; s = md[3];
+        tz = md[4];
+      } else if((md = data.match(this.timeReducedARE))) {
+        h = md[1]; m = md[2];
+        tz = md[3];
+      } else if((md = data.match(this.timeReducedBRE))) {
+        h = md[1];
+        tz = md[2];
+      } else if((md = data.match(this.timeTruncatedMSRE))) {
+        m = md[1]; s = md[2];
+        tz = md[3];
+      } else if((md = data.match(this.timeTruncatedSRE))) {
+        s = md[1];
+        tz = md[2];
+      } else {
+        console.error("WARNING: failed to parse time: ", data);
+        return null;
+      }
+
+      var dt = new Date(0);
+      if(typeof(h) != 'undefined') { dt.setUTCHours(h); }
+      if(typeof(m) != 'undefined') { dt.setUTCMinutes(m); }
+      if(typeof(s) != 'undefined') { dt.setUTCSeconds(s); }
+
+      if(tz) {
+        dt = this.applyTimezone(dt, tz);
+      }
+
+      return dt;
+    },
+
+    // add two dates. if addSub is false, substract instead of add.
+    addDates: function(aDate, bDate, addSub) {
+      if(typeof(addSub) == 'undefined') { addSub = true };
+      if(! aDate) { return bDate; }
+      if(! bDate) { return aDate; }
+      var a = Number(aDate);
+      var b = Number(bDate);
+      var c = addSub ? a + b : a - b;
+      return new Date(c);
+    },
+
+    parseTimezone: function(tz) {
+      var md;
+      if((md = tz.match(/^([+\-])(\d{2})(\d{2})?/))) {
+        var offset = new Date(0);
+        offset.setUTCHours(md[2]);
+        offset.setUTCMinutes(md[3] || 0);
+        return Number(offset) * (md[1] == '+' ? +1 : -1);
+      } else {
+        return null;
+      }
+    },
+
+    applyTimezone: function(date, tz) {
+      var offset = this.parseTimezone(tz);
+      if(offset) {
+        return new Date(Number(date) + offset);
+      } else {
+        return date;
+      }
+    },
+
+    parseDateTime: function(data) {
+      var parts = data.split('T');
+      var t = this.parseDate(parts[0]);
+      var d = this.parseTime(parts[1]);
+      return this.addDates(t, d);
+    },
+
+    parseDateAndOrTime: function(data) {
+      switch(data.indexOf('T')) {
+      case 0:
+        return this.parseTime(data.slice(1));
+      case -1:
+        return this.parseDate(data);
+      default:
+        return this.parseDateTime(data);
+      }
+    },
+
+    lineRE: /^([^\s].*)(?:\r?\n|$)/, // spec wants CRLF, but we're on the internet. reality is chaos.
+    foldedLineRE:/^\s(.+)(?:\r?\n|$)/,
+
+    // lex the given input, calling the callback for each line, with
+    // the following arguments:
+    //   * key - key of the statement, such as 'BEGIN', 'FN', 'N', ...
+    //   * value - value of the statement, i.e. everything after the first ':'
+    //   * attrs - object containing attributes, such as {"TYPE":"work"}
+    lex: function(input, callback) {
+
+      var md, line = null, length = 0;
+
+      for(;;) {
+        if((md = input.match(this.lineRE))) {
+          if(line) {
+            this.lexLine(line, callback);
+          }
+          line = md[1];
+          length = md[0].length;
+        } else if((md = input.match(this.foldedLineRE))) {
+          if(line) {
+            line += md[1];
+            length = md[0].length;
+          } else {
+            // ignore folded junk.
+          }
+        } else {
+          console.error("Unmatched line: " + line);
+        }
+
+        input = input.slice(length);
+
+        if(! input) {
+          break;
+        }
+      }
+
+      if(line) {
+        // last line.
+        this.lexLine(line, callback);
+      }
+
+      line = null;
+    },
+
+    lexLine: function(line, callback) {
+      var tmp = '';
+      var key = null, attrs = {}, value = null, attrKey = null;
+
+      function finalizeKeyOrAttr() {
+        if(key) {
+          if(attrKey) {
+            attrs[attrKey] = tmp;
+          } else {
+            console.error("Invalid attribute: ", tmp, 'Line dropped.');
+            return;
+          }
+        } else {
+          key = tmp;
+        }
+      }
+
+      for(var i in line) {
+        var c = line[i];
+
+        switch(c) {
+        case ':':
+          finalizeKeyOrAttr();
+          value = line.slice(Number(i) + 1);
+          callback.apply(
+            this,
+            [key, value, attrs]
+          );
+          return;
+        case ';':
+          finalizeKeyOrAttr();
+          tmp = '';
+          break;
+        case '=':
+          attrKey = tmp;
+          tmp = '';
+          break;
+        default:
+          tmp += c;
+        }
+      }
+    }
+
+  };
+
+  return VCF;
+});
+
+/**
+ ** Skeleton for new modules
+ **/
+
+define('modules/contacts',[
+  '../remoteStorage',
+  '../modules/deps/vcf'
+], function(remoteStorage, VCF) {
+
+  // Namespace: remoteStorage.contacts
+  //
+  // Section: Tutorial
+  //
+  //   > // TODO!
+  //
+  // Section: Data Format
+  //
+  // The contacts module deals with information about people and connections between people.
+  //
+  // Data is stored as vcards, in a JSON representation.
+  //
+  // Here's an example:
+  //
+  //   (start code)
+  //   {
+  //     // FN stands for "formatted name". it's required.
+  //     "fn": "Hagbard Celine",
+  //     // N is an (optional) detailed representation of the name
+  //     "n": {
+  //       "first-name": "Hagbard"
+  //       "last-name": "Celine"
+  //     },
+  //     // a vcard can have multiple email addresses, so it's stored as an array.
+  //     "email" : [{
+  //       "type": "work",
+  //       "value": "hagbard@leifericson.no"
+  //     }]
+  //   }
+  //   (end code)
+  //
+
+  var moduleName = "contacts";
+
+  remoteStorage.defineModule(moduleName, function(base) {
+
+    base.declareType('vcard', {
+
+      "description": "a vcard",
+
+      "type": "object",
+
+      "properties": {
+        "version": {
+          "type": "string"
+        },
+
+        "fn": {
+          "type": "string",
+          "description": "formatted name",
+          "required": true,
+        },
+
+        "uid": {
+          "description": "unique identifier",
+          "type": "string",
+          "format": "uri"
+        },
+
+        "n": {
+          "type": "object",
+          "description": "structured name",
+          "properties": {
+            "family-name": { "type": "array", "items": { "type": "string" } },
+            "given-name": { "type": "array", "items": { "type": "string" } },
+            "additional-name": { "type": "array", "items": { "type": "string" } },
+            "horifific-prefix": { "type": "array", "items": { "type": "string" } },
+            "honorific-suffix": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+
+        "nickname": {
+          "type": "string"
+        },
+
+        "photo": {
+          "type": "string",
+          "format": "uri"
+        },
+
+        "logo": {
+          "type": "string",
+          "format": "uri"
+        },
+
+        "title": {
+          "type": "string"
+        },
+
+        "org": {
+          "type": "string",
+          "description": "Name of an organization"
+        },
+
+        "role": {
+          "type": "string",
+          "description": "role of a person within an organization"
+        },
+
+        "kind": {
+          "type": "string",
+          "enum": ["individual", "group", "event"],
+          "description": "nature of the thing being described by this vcard"
+        },
+
+        "email": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "description": "type of this email address. common values are 'work', 'home'",
+                "required": true
+              },
+              "value": {
+                "type": "string",
+                "description": "the actual email address",
+                "required": true
+              }
+            }
+          }
+        },
+
+        "tel": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "description": "type of this telephone number, such as text, voice, fax, cell, video, pager, textphone",
+                "required": true
+              },
+              "value": {
+                "type": "string",
+                "regex": "^[\d+-\s]+$"
+              }
+            }
+          }
+        },
+
+        "related": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "description": "nature of this relation",
+                "required": true
+              },
+              "value": {
+                "type": "string",
+                "description": "URI pointing to related thing",
+                "format": "uri",
+                "required": true
+              }
+            }
+          }
+        },
+
+        "member": {
+          "type": "array",
+          "description": "members of a group",
+          "items": {
+            "type": "string",
+            "description": "URI pointing to member thing",
+            "format": "uri"
+          }
+        },
+        "geo": {
+          "type": "string",
+          "description": "geographical coordinates associated with this thing"
+        },
+        "rev": {
+          "type": "string",
+          "description": "revision of this object."
+        }
+      }
+    });
+
+    function searchMatch(item, filter, filterKeys) {
+      if(! filterKeys) {
+        filterKeys = Object.keys(filter);
+      }
+
+      var check = function(value, ref) {
+        if(value instanceof Array) {
+          // multiples, such as MEMBER, EMAIL, TEL
+          for(var i=0;i<value.length;i++) {
+            check(value[i], ref);
+          }
+        } else if(typeof value === 'object' && value.value) {
+          // compounds, such as EMAIL, TEL, IMPP
+          check(value.value, ref);
+        } else {
+          if(typeof(ref) === 'string' && ref.length === 0) {
+            return true; // the empty string always matches
+          } else if(ref instanceof RegExp) {
+            if(! ref.test(value)) {
+              return false;
+            }
+          } else if(value !== ref) {
+            // equality is fallback.
+            return false;
+          }
+        }
+      }
+      for(var key in filterKeys) {
+        if(! check(item[key], filterKeys[key])) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    remoteStorage.util.extend(base, {
+
+      buildVCard: function(attributes) {
+        var vcard = buildObject('vcard', attributes);
+        if(! vcard.uid) {
+          vcard.uid = base.uuid();
+        }
+        return vcard;
+      },
+
+      filter: function(cb) {
+        var items = base.getAll('');
+        var results = [];
+        for(var key in items) {
+          var item = items[key];
+          if(cb(item)) {
+            results.push(item);
+          }
+        }
+        return results;
+      },
+
+      search: function(filter) {
+        var keys = Object.keys(filter);
+
+        var results = base.filter(function(item) {
+          return searchMatch(item, filter, keys);
+        });
+        console.log("SEARCH", filter, results);
+        return results;
+      },
+
+      addVCards: function(fileList) {
+        for(var i=0;i<fileList.length;i++) {
+          var reader = new FileReader();
+          var file = fileList[i];
+          reader.onload = function() {
+            VCF.parse(reader.result, function(vcard) {
+              if(! vcard.uid) {
+                vcard.uid = base.uuid();
+              }
+              base.storeObject('vcard', vcard.uid, vcard);
+            });
+          }
+          reader.readAsText(file);
+        }
+      }
+
+    });
+
+    return { exports: base };
+
+    // var DEBUG = true, contacts = {};
+
+    // // Copy over all properties from source to destination.
+    // // Return destination.
+    // function extend() {
+    //   var destination = arguments[0], source;
+    //   for(var i=1;i<arguments.length;i++) {
+    //     source = arguments[i];
+    //     var keys = Object.keys(source);
+    //     for(var j=0;j<keys.length;j++) {
+    //       var key = keys[j];
+    //       destination[key] = source[key];
+    //     }
+    //   }
+    //   return destination;
+    // }
+
+
+    // var bindContext = (
+    //   ( (typeof (function() {}).bind === 'function') ?
+    //     // native version
+    //     function(cb, context) { return cb.bind(context); } :
+    //     // custom version
+    //     function(cb, context) {
+    //       return function() { return cb.apply(context, arguments); }
+    //     } )
+    // );
+
+    // var debug = DEBUG ? bindContext(console.log, console) : function() {};
+
+    // // VCard subtypes:
+
+    // var Contact = function() {
+    //   VCard.apply(this, arguments);
+    //   this.setAttribute('kind', 'individual');
+    // }
+
+    // function makeVcardInstance(data) {
+    //   var type = (data.kind == 'individual' ? Contact :
+    //               (data.kind == 'group' ? Group : VCard));
+    //   return new type(data);
+    // }
+
+    // var Group = function(name) {
+    //   VCard.apply(this, arguments);
+    //   this.setAttribute('kind', 'group');
+    // }
+
+    // var groupMembers = {
+
+    //   getMembers: function() {
+    //     var members = [];
+    //     for(var i=0;i<this.member.length;i++) {
+    //       members.push(this.lookupMember(member[i]));
+    //     }
+    //     return members;
+    //   },
+
+    //   // resolve a URI to a contact an return it.
+    //   lookupMember: function(uri) {
+    //     var md = uri.match(/^([^:]):(.*)$/), scheme = md[1], rest = md[2];
+    //     var key;
+    //     switch(scheme) {
+    //       // URN and UUID directly resolve to the contact's key.
+    //       // if they don't, there is nothing we can do about it.
+    //     case 'urn':
+    //     case 'uuid':
+    //       return contacts.get(uri);
+    //     case 'mailto':
+    //     case 'xmpp':
+    //     case 'sip':
+    //     case 'tel':
+    //       var query = {};
+    //       query[{
+    //         mailto: 'email',
+    //         xmpp: 'impp',
+    //         sip: 'impp',
+    //         tel: 'tel'
+    //       }[scheme]] = rest;
+    //       var results = contacts.search(query);
+    //       if(results.length > 0) {
+    //         return results[0];
+    //       }
+    //       if(scheme == 'tel') {
+    //         break; // no fallback for TEL
+    //       }
+    //       // fallback for MAILTO, XMPP, SIP schems is webfinger:
+    //     case 'acct':
+    //       console.error("FIXME: implement contact-lookup via webfinger!");
+    //       break;
+    //       // HTTP could resolve to a foaf profile, a vcard, a jcard...
+    //     case 'http':
+    //       console.error("FIXME: implement contact-lookup via HTTP!");
+    //       break;
+    //     default:
+    //       console.error("FIXME: unknown URI scheme " + scheme);
+    //     }
+    //     return undefined;
+    //   }
+
+    // };
+
+    // // Namespace: exports
+
+    // extend(contacts, {
+
+    //   // Property: Contact
+    //   // A VCard constructor for contacts (kind: "individual")
+    //   Contact: Contact,
+
+    //   // Property: Group
+    //   // A VCard constructor for groups (kind: "group")
+    //   //
+    //   Group: Group,
+
+    //   //
+    //   // Method: on
+    //   //
+    //   // Install an event handler.
+    //   //
+    //   // "change" events will be altered, so the newValue and oldValue attributes contain VCard instances.
+    //   //
+    //   // For documentation on events see <BaseClient> and <BaseClient.on>.
+    //   on: function(eventType, callback) {
+    //     base.on(eventType, function(event) {
+    //       if(event.oldValue) {
+    //         event.oldValue = contacts._wrap(event.oldValue);
+    //       }
+    //       if(event.newValue) {
+    //         event.newValue = contacts._wrap(event.newValue);
+    //       }
+    //       callback(event);
+    //     });
+    //   },
+
+    //   //
+    //   // Method: use
+    //   //
+    //   // Set the "force sync" flag for all contacts.
+    //   //
+    //   // This causes the complete data to be synced, next time <syncNow> is called on either /contacts/ or /.
+    //   //
+    //   use: function() {
+    //     debug("contacts.sync()");
+    //     base.use('');
+    //   },
+
+    //   //
+    //   // Method: list
+    //   //
+    //   // Get a list of contact objects.
+    //   //
+    //   // Parameters:
+    //   //   limit - (optional) maximum number of objects to return
+    //   //   offset - (optional) index to start at.
+    //   //
+    //   //   you can use limit / offset to implement pagination or load-on-scroll flows.
+    //   //
+    //   // Returns:
+    //   //   An Array of VCard objects (or descendants)
+    //   //
+    //   // Example:
+    //   //   > remoteStorage.contacts.list().forEach(function(contact) {
+    //   //   >   console.log(contact.getAttribute('fn'));
+    //   //   > });
+    //   //
+    //   list: function(limit, offset) {
+    //     var list = base.getListing('');
+    //     if(! offset) {
+    //       offset = 0;
+    //     }
+    //     if(! limit) {
+    //       limit = list.length - offset;
+    //     }
+    //     for(var i=0;i<limit;i++) {
+    //       if(list[i + offset]) {
+    //         list[i + offset] = this.get(list[i + offset]);
+    //       }
+    //     }
+    //     return list;
+    //   },
+
+    //   //
+    //   // Method: get
+    //   //
+    //   // Retrieve a single contact.
+    //   //
+    //   // Parameters:
+    //   //   uid - UID of the contact
+    //   //   callback - (optional)
+    //   //   context - (optional)
+    //   //
+    //   // The callbacks follow the semantics described in <BaseClient.getObject>
+    //   //
+    //   get: function(uid, cb, context) {
+    //     if(cb) {
+    //       base.getObject(uid, function(data) {
+    //         bindContext(cb, context)(this._wrap(data));
+    //       }, this);
+    //     } else {
+    //       return this._wrap(base.getObject(uid));
+    //     }
+    //   },
+
+    //   //
+    //   // Method: build
+    //   //
+    //   // Build a new (unsaved) contact object.
+    //   //
+    //   // If you want to store the object later, use <put>.
+    //   //
+    //   // Parameters:
+    //   //   attributes - (optional) initial attributes to add
+    //   //
+    //   build: function(attributes) {
+    //     return this._wrap(attributes);
+    //   },
+
+    //   //
+    //   // Method: put
+    //   //
+    //   // Update or create a contact.
+    //   //
+    //   // Parameters:
+    //   //   contact - a VCard object
+    //   //
+    //   // Returns:
+    //   //   the (possibly altered) VCard object
+    //   //
+    //   // Sets UID and REV attributes as needed.
+    //   //
+    //   //
+    //   // Example:
+    //   //   (start code)
+    //   //   var contact = remoteStorage.contacts.build({ "kind":"individual" });
+    //   //   contact.fn = "Donald Duck";
+    //   //   // (at this point you could contact.validate(), to check if everything is in order)
+    //   //   remoteStorage.contacts.put(contact);
+    //   //   // contact now persisted.
+    //   //   (end code)
+    //   //
+    //   put: function(contact) {
+    //     var contact = this.build(contact);
+    //     contact.validate();
+    //     // TODO: do something with the errors!
+    //     base.storeObject('vcard+' + (contact.kind || 'individual'), contact.uid, contact.attributes);
+    //     return contact;
+    //   },
+
+    //   filter: function(cb, context) {
+    //     // this is highly ineffective. go fix it!
+    //     var list = this.list();
+    //     var results = [];
+    //     var item;
+    //     for(var i=0;i<list.length;i++) {
+    //       item = bindContext(cb, context)(list[i]);
+    //       if(item) {
+    //         results.push(item)
+    //       }
+    //     }
+    //     return results;
+    //   },
+
+    //   search: function(filter) {
+    //     var keys = Object.keys(filter);
+
+    //     return this.filter(function(item) {
+    //       return this.searchMatch(item, filter, keys);
+    //     }, this);
+    //   },
+
+    //   searchMatch: function(item, filter, filterKeys) {
+    //     if(! filterKeys) {
+    //       filterKeys = Object.keys(filter);
+    //     }
+
+    //     var check = function(value, ref) {
+    //       if(value instanceof Array) {
+    //         // multiples, such as MEMBER, EMAIL, TEL
+    //         for(var i=0;i<value.length;i++) {
+    //           check(value[i], ref);
+    //         }
+    //       } else if(typeof value === 'object' && value.value) {
+    //         // compounds, such as EMAIL, TEL, IMPP
+    //         check(value.value, ref);
+    //       } else {
+    //         if(typeof(ref) === 'string' && ref.length === 0) {
+    //           return true; // the empty string always matches
+    //         } else if(ref instanceof RegExp) {
+    //           if(! ref.test(value)) {
+    //             return false;
+    //           }
+    //         } else if(value !== ref) {
+    //           // equality is fallback.
+    //           return false;
+    //         }
+    //       }
+    //     }
+
+    //     return this.filter(function(item) {
+    //       for(var i=0;i<keys.length;i++) {
+    //         var k = keys[i], v = filter[k];
+    //         if(! check(item[k], v)) {
+    //           return false;
+    //         }
+    //       }
+    //       debug('success');
+    //       return item;
+    //     });
+    //   },
+
+    //   _wrap: function(data) {
+    //     return(data instanceof VCard ? data : makeVcardInstance(data));
+    //   }
+
+    // });
+
+
+    // return {
+    //   name: moduleName,
+
+    //   dataHints: {
+    //   },
+
+    //   exports: contacts
+    // }
+  });
+
+
+  return remoteStorage[moduleName];
+
+});
+
+
+
+define('modules/documents',['../remoteStorage'], function(remoteStorage) {
+
+  var moduleName = 'documents';
+
+  remoteStorage.defineModule(moduleName, function(myBaseClient) {
+    var errorHandlers=[];
+    function fire(eventType, eventObj) {
+      if(eventType == 'error') {
+        for(var i=0; i<errorHandlers.length; i++) {
+          errorHandlers[i](eventObj);
+        }
+      }
+    }
+    function getUuid() {
+      var uuid = '',
+      i,
+      random;
+
+      for ( i = 0; i < 32; i++ ) {
+        random = Math.random() * 16 | 0;
+        if ( i === 8 || i === 12 || i === 16 || i === 20 ) {
+          uuid += '-';
+        }
+        uuid += ( i === 12 ? 4 : (i === 16 ? (random & 3 | 8) : random) ).toString( 16 );
+      }
+      return uuid;
+    }
+    function getPrivateList(listName) {
+      myBaseClient.use(listName+'/');
+      function getIds() {
+        return myBaseClient.getListing(listName+'/');
+      }
+      function getContent(id) {
+        var obj = myBaseClient.getObject(listName+'/'+id);
+        if(obj) {
+          return obj.content;
+        } else {
+          return '';
+        }
+      }
+      function getTitle(id) {
+        return getContent(id).slice(0, 50);
+      }
+      function setContent(id, content) {
+        if(content == '') {
+          myBaseClient.remove(listName+'/'+id);
+        } else {
+          myBaseClient.storeObject('text', listName+'/'+id, {
+            content: content
+          });
+        }
+      }
+      function add(content) {
+        var id = getUuid();
+        myBaseClient.storeObject('text', listName+'/'+id, {
+          content: content
+        });
+        return id;
+      }
+      function on(eventType, cb) {
+        myBaseClient.on(eventType, cb);
+        if(eventType == 'error') {
+          errorHandlers.push(cb);
+        }
+      }
+      return {
+        getIds        : getIds,
+        getContent    : getContent,
+        getTitle      : getTitle,
+        setContent   : setContent,
+        add           : add,
+        on            : on
+      };
+    }
+    return {
+      name: moduleName,
+      dataHints: {
+        "module": "documents can be text documents, or etherpad-lite documents or pdfs or whatever people consider a (text) document. But spreadsheets and diagrams probably not",
+        "objectType text": "a human-readable plain-text document in utf-8. No html or markdown etc, they should have their own object types",
+        "string text#content": "the content of the text document",
+
+        "directory documents/notes/": "used by litewrite for quick notes",
+        "item documents/notes/calendar": "used by docrastinate for the 'calendar' pane",
+        "item documents/notes/projects": "used by docrastinate for the 'projects' pane",
+        "item documents/notes/personal": "used by docrastinate for the 'personal' pane"
+      },
+      exports: {
+        getPrivateList: getPrivateList
+      }
+    };
+  });
+
+  return remoteStorage[moduleName];
+
+});
+
+define('modules/money',['../remoteStorage'], function(remoteStorage) {
+
+  remoteStorage.defineModule('money', function(myPrivateBaseClient, myPublicBaseClient) {
+    return {
+      name: 'money',
+      dataHints: {
+      },
+      exports: {
+        setDayBusiness: function(tab, year, month, day, transactions, endBalances) {
+          var datePath = year+'/'+month+'/'+day+'/'+tab.substring(1)+'/';
+          for(var i=0; i<transactions.length;i++) {
+            myPrivateBaseClient.storeObject('transaction', datePath+'transaction/'+i, transactions[i]);
+          }
+          for(var i in endBalances) {
+            myPrivateBaseClient.storeObject('balance', datePath+'balance/'+i, endBalances[i]);
+          }
+        }
+      }
+    };
+  });
+
+});
+
+define('modules/tasks',['../remoteStorage'], function(remoteStorage) {
+
+  var moduleName = "tasks";
+
+  remoteStorage.defineModule(moduleName, function(myPrivateBaseClient, myPublicBaseClient) {
+
+    // Namespace: remoteStorage.tasks
+    //
+    // tasks are things that need doing; items on your todo list
+    //
+    // Example:
+    //   (start code)
+    //
+    //   remoteStorage.claimAccess('tasks', 'rw');
+    //
+    //   remoteStorage.displayWidget('remotestorage-connect');
+    //
+    //   // open a task list (you can have multiple task lists, see dataHints for naming suggestions)
+    //   var todos = remoteStorage.tasks.getPrivateList('todos');
+    //
+    //   function printTasks() {
+    //     // get all task ids...
+    //     todos.getIds().forEach(function(id) {
+    //       // ...then load each task and print it.
+    //       var task = todos.get(id);
+    //       console.log(task.completed ? '[x]' : '[ ]', task.title);
+    //     });
+    //   }
+    //
+    //   // add some tasks
+    //   todos.add("Start unhosted webapp");
+    //   todos.add("Obtain a freedombox");
+    //   todos.add("Scientifically overcome the existence of dirty laundry");
+    //
+    //   // see the result
+    //   printTasks();
+    //
+    //   // mark the first task as completed (after all, by copying this code you create a unhosted webapp)
+    //   todos.markCompleted(todos.getIds()[0]);
+    //
+    //   // see what changed
+    //   printTasks();
+    //
+    //   (end code)
+    //
+    // Method: getPrivateList
+    //
+    // open a task list to work with
+    //
+    // Parameters:
+    //   listName - name of the list to open. try "todos" or "2012".
+    //
+    // Returns:
+    //   a <TaskList> object
+    //
+
+    var errorHandlers=[];
+    function fire(eventType, eventObj) {
+      if(eventType == 'error') {
+        for(var i=0; i<errorHandlers.length; i++) {
+          errorHandlers[i](eventObj);
+        }
+      }
+    }
+    function getUuid() {
+      var uuid = '',
+      i,
+      random;
+
+      for ( i = 0; i < 32; i++ ) {
+        random = Math.random() * 16 | 0;
+        if ( i === 8 || i === 12 || i === 16 || i === 20 ) {
+          uuid += '-';
+        }
+        uuid += ( i === 12 ? 4 : (i === 16 ? (random & 3 | 8) : random) ).toString( 16 );
+      }
+      return uuid;
+    }
+    function getPrivateList(listName) {
+      myPrivateBaseClient.use(listName+'/');
+      function getIds() {
+        return myPrivateBaseClient.getListing(listName+'/');
+      }
+      function get(id) {
+        return myPrivateBaseClient.getObject(listName+'/'+id);
+      }
+      function set(id, title) {
+        var obj = myPrivateBaseClient.getObject(listName+'/'+id);
+        obj.title = title;
+        myPrivateBaseClient.storeObject('task', listName+'/'+id, obj);
+      }
+      function add(title) {
+        var id = getUuid();
+        myPrivateBaseClient.storeObject('task', listName+'/'+id, {
+          title: title,
+          completed: false
+        });
+        return id;
+      }
+      function markCompleted(id, completedVal) {
+        if(typeof(completedVal) == 'undefined') {
+          completedVal = true;
+        }
+        var obj = myPrivateBaseClient.getObject(listName+'/'+id);
+        if(obj && obj.completed != completedVal) {
+          obj.completed = completedVal;
+          myPrivateBaseClient.storeObject('task', listName+'/'+id, obj);
+        }
+      }
+      function isCompleted(id) {
+        var obj = get(id);
+        return obj && obj.completed;
+      }
+      function getStats() {
+        var ids = getIds();
+        var stat = {
+          todoCompleted: 0,
+          totalTodo: ids.length
+        };
+        for (var i=0; i<stat.totalTodo; i++) {
+          if (isCompleted(ids[i])) {
+            stat.todoCompleted += 1;
+          }
+        }
+        stat.todoLeft = stat.totalTodo - stat.todoCompleted;
+        return stat;
+      }
+      function remove(id) {
+        myPrivateBaseClient.remove(listName+'/'+id);
+      }
+      function on(eventType, cb) {
+        myPrivateBaseClient.on(eventType, cb);
+        if(eventType == 'error') {
+          errorHandlers.push(cb);
+        }
+      }
+      // Class: TaskList
+      return {
+        // Method: getIds
+        //
+        // Get a list of task IDs, currently in this list
+        //
+        // Example:
+        //   > remoteStorage.tasks.getIds();
+        //
+        getIds        : getIds,
+        // Method: get
+        //
+        // Get a single task object, by it's ID.
+        //
+        // Parameters:
+        //   id - the task ID
+        //
+        // Returns:
+        //   An object containing the task's data.
+        get           : get,
+        // Method: set
+        //
+        // Set the title of a task.
+        //
+        // Parameters:
+        //   id - the task ID
+        //   title - new title to set
+        //
+        set           : set,
+        // Method: add
+        //
+        // Add a task by providing it's title.
+        //
+        // Newly created tasks are marked as not completed.
+        //
+        // Parameters:
+        //   title - title to set for the new task.
+        //
+        add           : add,
+        // Method: remove
+        //
+        // Remove a task
+        //
+        // Parameters:
+        //   id - the task ID
+        //
+        remove        : remove,
+        // Method: markCompleted
+        //
+        // Mark a task as completed.
+        //
+        // Parameters:
+        //   id    - the task ID
+        //   value - (optional) boolean. defaults to true.
+        //
+        // Examples:
+        //   > remoteStorage.tasks.markCompleted(123);
+        //
+        //   > remoteStorage.tasks.markCompleted(234, false);
+        markCompleted : markCompleted,
+        // Method: getStats
+        //
+        // Get statistics on this <TaskList>.
+        //
+        // Returns:
+        //   An Object with keys,
+        //
+        //   todoCompleted - number of completed tasks
+        //   totalTodo     - total number of tasks in this list
+        //   todoLeft      - number of tasks awaiting completion
+        //
+        getStats      : getStats,
+        // Method: on
+        //
+        // Delegated to <BaseClient.on>
+        on            : on
+      };
+    }
+    return {
+      name: moduleName,
+      dataHints: {
+        "module": "",
+
+        "objectType task": "something that needs doing, like cleaning the windows or fixing a specific bug in a program",
+        "string task#title": "describes what it is that needs doing",
+        "boolean task#completed": "whether the task has already been completed or not (yet)",
+
+        "directory tasks/todos/": "default private todo list",
+        "directory tasks/:year/": "tasks that need doing during year :year",
+        "directory public/tasks/:hash/": "tasks list shared to for instance a team"
+      },
+      exports: {
+        getPrivateList: getPrivateList
+      }
+    };
+  });
+
+  return remoteStorage[moduleName];
+
+});
+
+
+define('modules/bookmarks',['../remoteStorage'], function(remoteStorage) {
+
+  var moduleName = 'bookmarks';
+
+  remoteStorage.defineModule(
+    moduleName,
+    function(privateClient, publicClient) {
+
+      // publicClient.sync('');
+
+      return {
+        name: moduleName,
+
+        dataHints: {
+          "module" : "Store URLs which you do not wish to forget"
+        },
+
+        exports: {
+
+          // remoteStorage.bookmarks.on('change', function(changeEvent) {
+          //   if(changeEvent.newValue && changeEvent.oldValue) {
+          //    changeEvent.origin:
+          //      * window - event come from current window
+          //            -> ignore it
+          //      * device - same device, other tab (/window/...)
+          //      * remote - not related to this app's instance, some other app updated something on remoteStorage
+          //   }
+          // });
+          on: privateClient.on,
+
+          listUrls: function() {
+            var keys = privateClient.getListing('');
+            var urls = [];
+            keys.forEach(function(key) {
+              urls.push(privateClient.getObject(key).url);
+            });
+            return urls;
+          },
+
+
+          listBookmarks: function() {
+            var keys = privateClient.getListing('');
+            var bms = [];
+            keys.forEach(function(key) {
+              bms.push(privateClient.getObject(key));
+            });
+            privateClient.use('');
+            return bms;
+          },
+
+          // remoteStorage.bookmarks.addUrl
+          addUrl: function(url) {
+            return privateClient.storeObject(
+              // /bookmarks/http%3A%2F%2Funhosted.org%2F
+              'bookmark', encodeURIComponent(url), {
+                url: url,
+                createdAt: new Date()
+              }
+            );
+          },
+
+          getPublicListing: function() {
+            var listing = publicClient.getObject('publishedItems');
+            return listing || { items: [] };
+          },
+
+          publish: function(url) {
+            var key = encodeURIComponent(url);
+            var bookmark = privateClient.getObject(key);
+
+            publicClient.storeObject('bookmark', key, bookmark);
+
+            var listing = publicClient.getListing('');
+            delete listing['published'];
+            publicClient.storeObject('bookmark-list', 'published', listing);
+          }
+
+        }
+      };
+    }
+  );
+
+});
+
+define('remoteStorage-modules',[
+  './remoteStorage',
+  './modules/root',
+  './modules/calendar',
+  './modules/contacts',
+  './modules/documents',
+  './modules/money',
+  './modules/tasks',
+  './modules/bookmarks'
+], function(remoteStorage) {
+  return remoteStorage;
+});
+
+
   global.localStorage = {
     getItem: function(key) {
       return this[key];
@@ -6087,5 +8299,5 @@ define('remoteStorage',[
     }
   }
 
-  module.exports = require('remoteStorage');
+  module.exports = require('remoteStorage-modules');
 })();

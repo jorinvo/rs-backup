@@ -10,8 +10,8 @@ var cronJob = require('cron').CronJob;
 // localStorage = require('localStorage');
 var remoteStorage = require('./remoteStorage-node-debug');
 //TODO: fix this by wrapping root module in commonjs format
-global.remoteStorage = remoteStorage;
-require('./js/vendor/remoteStorage.root');
+// global.remoteStorage = remoteStorage;
+// require('./js/vendor/remoteStorage.root');
 
 var app = express();
 
@@ -219,3 +219,9 @@ function interate(arr, fn) {
 var port = process.env.PORT || 3000;
 app.listen(port);
 console.log('Listening on port ', port);
+
+
+setTimeout(function() {
+
+sendUpdates('336');
+},500)
