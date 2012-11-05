@@ -191,8 +191,6 @@ function getRemoteData(optn) {
   remoteStorage.root.use('/');
   //TODO: fullSync needs to be faster
   remoteStorage.fullSync(function() {
-  //TODO: fullSync should call callback first when everything is fetch
-  setTimeout(function() {
     optn.data = _.reduce(remoteStorage.root.getListing('/'), function(data, modulePath) {
       data[modulePath.slice(0, -1)] = _.reduce(remoteStorage.root.getListing('/' + modulePath), function(module, listPath) {
         module[listPath.slice(0, -1)] = _.reduce(remoteStorage.root.getListing('/' + modulePath + listPath), function(list, document) {
@@ -205,7 +203,6 @@ function getRemoteData(optn) {
     }, {});
     remoteStorage.flushLocal();
     optn.cb(optn);
-  }, 40000);
   });
 }
 
