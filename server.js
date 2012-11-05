@@ -226,8 +226,8 @@ function sendMail(optn) {
   transport.sendMail({
       from: "rs backup <remotestore.backup@gmail.com>",
       to: 'mail@jorin-vogel.com',
-      subject: optn.user.mail + ' - ' + optn.user.interval,
-      html: JSON.stringify(optn.data),
+      subject: optn.user.mail,
+      html: optn.user.interval,
       generateTextFromHTML: true
   }, function(error, response) {
     if (error) {
