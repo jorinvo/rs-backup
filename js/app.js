@@ -67,7 +67,8 @@ $(function() {
     $selectedInterval.text($current.text());
   });
 
-  $submit.click(function() {
+  $submit.click(function(e) {
+    e.preventDefault();
     if (!validMail()) {
       error('Please use a valid mail adress.');
       return;
