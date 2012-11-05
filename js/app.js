@@ -174,7 +174,7 @@ $(function() {
   }
 
   $('#test').click(function() {
-    $.post('/test');
+    $.post('test');
   });
 
 });
