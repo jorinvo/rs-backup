@@ -61,7 +61,7 @@ app.post('/lookup', function(req, res) {
   User.findOne(match(data), function(err, user) {
     if (user === null) return;
     data.mail = user.mail;
-    data.inteval = user.interval;
+    data.interval = user.interval;
     res.send(data);
   });
 });

@@ -21,7 +21,9 @@ $(function() {
       if (res) {
         $mail.val(res.mail);
         $intervals.removeClass('active');
-        //TODO: select current interval
+        var $current = $intervals.filter('[data-int="'+res.interval+'"]');
+        $current.addClass('active');
+        $selectedInterval.text($current.text());
         $leave.removeClass('disabled');
         $submit.text('update');
       }
@@ -127,7 +129,7 @@ $(function() {
     };
     if (what === 'all') {
       data.mail = $mail.val();
-      data.interval = $current.find('a').attr('href').slice(1);
+      data.interval = $current.attr('data-int');
     }
     return data;
   }
