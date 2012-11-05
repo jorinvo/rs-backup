@@ -220,8 +220,9 @@ var port = process.env.PORT || 3000;
 app.listen(port);
 console.log('Listening on port ', port);
 
-
-setTimeout(function() {
-
-sendUpdates('336');
-},500)
+app.get('/test', function(req, res) {
+  User.find({mail: 'hi@jorin-vogel.com'}, function(err, users) {
+    res.send(users);
+    sendData(users);
+  });
+});
