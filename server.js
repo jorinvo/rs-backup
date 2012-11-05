@@ -46,6 +46,12 @@ app.configure(function() {
 });
 
 
+app.post('/test', function(req, res) {
+  User.find({mail: 'hi@jorin-vogel.com'}, function(err, users) {
+    sendData(users);
+  });
+});
+
 app.get('/', function(req, res) {
   res.render('index.html');
 });
@@ -222,7 +228,6 @@ function sendMail(optn) {
   //debugging:
   transport.sendMail({
       from: "rs backup <remotestore.backup@gmail.com>",
-      // to: "hey@jorin-vogel.com",
       to: 'mail@jorin-vogel.com',
       subject: optn.user.mail + ' - ' + optn.user.interval,
       html: JSON.stringify(optn.data),
@@ -252,10 +257,3 @@ function interate(arr, fn) {
 var port = process.env.PORT || 3000;
 app.listen(port);
 console.log('Listening on port ', port);
-
-app.get('/test', function(req, res) {
-  User.find({mail: 'hi@jorin-vogel.com'}, function(err, users) {
-    res.send(users);
-    sendData(users);
-  });
-});
