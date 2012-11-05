@@ -229,13 +229,21 @@ function getRemoteData(optn) {
 }
 
 function sendMail(optn) {
+  var d = new Date();
+  var date = d.toDateString() + ' - ' + d.toLocaleTimeString();
   //TODO: add directly unsubscribe link to mail
   transport.sendMail({
-      from: "rs backup <remotestore.backup@gmail.com>",
+      from: 'rs backup <remotestore.backup@gmail.com>',
       to: optn.user.mail,
-      subject: "hi",
-      html: JSON.stringify(optn.data),
-      generateTextFromHTML: true
+      subject: 'rs backup at ' + date,
+      html:
+        "Here is the remoteStorage backup for " + optn.user.storageHref + ". \
+        To change your settings go to <a href=\"http://rs-backup.herokuapp.com\">rs-backup.herokuapp.com</a>.",
+      generateTextFromHTML: true,
+      attachments: [{
+        fileName: 'rs-backup ' + date + '.json',
+        contents: JSON.stringify(optn.data)
+      }]
   }, function(error, response) {
     if (error) {
       console.log('jorins err: ', error);
