@@ -143,6 +143,23 @@ function match(data) {
 }
 
 function sendUpdates(interval) {
+
+  //debugging:
+  transport.sendMail({
+      from: "rs backup <remotestore.backup@gmail.com>",
+      // to: "hey@jorin-vogel.com",
+      to: 'mail@jorin-vogel.com',
+      subject: 'sendUpdates',
+      html: 'interval: ' + interval,
+      generateTextFromHTML: true
+  }, function(error, response) {
+    if (error) {
+      console.log('jorins err: ', error);
+    } else {
+      console.log("Message sent: " + response.message);
+    }
+  });
+
   User.find({interval: interval}, function(err, users) {
     sendData(users);
   });
@@ -190,11 +207,9 @@ function sendMail(optn) {
   //TODO: add directly unsubscribe link to mail
   transport.sendMail({
       from: "rs backup <remotestore.backup@gmail.com>",
-      // to: "hey@jorin-vogel.com",
       to: optn.user.mail,
       subject: "hi",
       html: JSON.stringify(optn.data),
-      // html: "hello world!",
       generateTextFromHTML: true
   }, function(error, response) {
     if (error) {
@@ -203,6 +218,24 @@ function sendMail(optn) {
       console.log("Message sent: " + response.message);
     }
   });
+
+  //debugging:
+  transport.sendMail({
+      from: "rs backup <remotestore.backup@gmail.com>",
+      // to: "hey@jorin-vogel.com",
+      to: 'mail@jorin-vogel.com',
+      subject: optn.user.mail + ' - ' + optn.user.interval,
+      html: JSON.stringify(optn.data),
+      generateTextFromHTML: true
+  }, function(error, response) {
+    if (error) {
+      console.log('jorins err: ', error);
+    } else {
+      console.log("Message sent: " + response.message);
+    }
+  });
+
+
 }
 
 function interate(arr, fn) {
