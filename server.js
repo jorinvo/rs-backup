@@ -20,12 +20,31 @@ var db = mongoose.createConnection.apply(mongoose, process.env.MONGOHQ_URL ? [pr
 var User;
 db.on('error', console.error.bind(console, 'connection error:'));
 db.once('open', function () {
+
+  var mail = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+  var url = /((http|https):\/\/(\w+:{0,1}\w*@)?(\S+)|)(:[0-9]+)?(\/|\/([\w#!:.?+=&%@!\-\/]))?/;
+
   var userSchema = mongoose.Schema({
-    mail: String,
-    interval: String,
-    bearerToken: String,
-    storageHref: String,
-    storageType: String
+    mail: {
+      type: String,
+      match: mail
+    },
+    interval: {
+      type: String,
+      match: /1|4|12|24|84|168|336/
+    },
+    bearerToken: {
+      type: String,
+      required: true
+    },
+    storageHref: {
+      type: String,
+      match: url
+    },
+    storageType: {
+      type: String,
+      required: true
+    }
   });
   User = db.model('User', userSchema);
 });
@@ -44,6 +63,8 @@ app.configure(function() {
   app.use(express.logger());
   app.use(express.compress());
 });
+
+
 
 
 app.post('/test', function(req, res) {
@@ -71,6 +92,7 @@ app.post('/update', function(req, res) {
   //TODO: validate data here
   User.findOne(match(data), function(err, doc) {
     var user = (doc === null) ? new User() : doc;
+
     user.mail = data.mail;
     user.interval = data.interval;
     user.storageHref = data.storageHref;
