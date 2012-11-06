@@ -12,7 +12,6 @@
     "localStorage": "1.0.x",
     "nodemailer": "0.3.x",
     "cron": "1.0.x",
-    "underscore": "1.4.x",
-    "node-zip": "0.0.2"
+    "underscore": "1.4.x"
   }
 }
