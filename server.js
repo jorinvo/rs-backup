@@ -223,7 +223,7 @@ function getRemoteData(optn) {
 function buildData(zip, base, path) {
   var isDir = path.charAt(path.length - 1) === '/';
   if (isDir) {
-    var folder = zip.folder(path.replace(/\//g,""));
+    var folder = zip.folder(path.slice(0, -1));
     _.each(remoteStorage.root.getListing(base + path), function(childPath) {
       buildData(folder, base + path, childPath);
     });
