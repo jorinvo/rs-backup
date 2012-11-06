@@ -213,19 +213,22 @@ function getRemoteData(optn) {
   remoteStorage.root.use('/');
   //TODO: fullSync needs to be faster
   remoteStorage.fullSync(function() {
-    optn.data = _.reduce(remoteStorage.root.getListing('/'), function(data, modulePath) {
-      data[modulePath.slice(0, -1)] = _.reduce(remoteStorage.root.getListing('/' + modulePath), function(module, listPath) {
-        module[listPath.slice(0, -1)] = _.reduce(remoteStorage.root.getListing('/' + modulePath + listPath), function(list, document) {
-          list[document] = remoteStorage.root.getObject('/' + modulePath + listPath + document);
-          return list;
-        }, []);
-        return module;
-      }, {});
-      return data;
-    }, {});
+    optn.data = buildData({}, '', '/');
     remoteStorage.flushLocal();
     optn.cb(optn);
   });
+}
+
+function buildData(data, base, path) {
+  var isDir = path.charAt(path.length - 1) === '/';
+  if (isDir) {
+    data[path.slice(0, -1)] = _.reduce(remoteStorage.root.getListing(base + path), function(child, childPath) {
+      return buildData(child, base + path, childPath);
+    }, {});
+  } else {
+    data[path] = remoteStorage.root.getObject(base + path);
+  }
+  return data;
 }
 
 function sendMail(optn) {
