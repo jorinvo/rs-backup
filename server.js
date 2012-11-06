@@ -241,8 +241,8 @@ function sendMail(optn) {
         To change your settings go to <a href=\"http://rs-backup.herokuapp.com\">rs-backup.herokuapp.com</a>.",
       generateTextFromHTML: true,
       attachments: [{
-        fileName: 'rs-backup ' + date + '.json',
-        contents: JSON.stringify(optn.data)
+        fileName: 'rs-backup ' + date + '.zip',
+        contents: optn.data
       }]
   }, function(error, response) {
     if (error) {
