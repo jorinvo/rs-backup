@@ -221,15 +221,15 @@ function getRemoteData(optn) {
 }
 
 function buildData(zip, base, path) {
-  var isDir = path.charAt(path.length - 1) === '/';
-  if (isDir) {
-    var folder = zip.folder(path.replace(/\//g,""));
-    _.each(remoteStorage.root.getListing(base + path), function(childPath) {
+  _.each(remoteStorage.root.getListing(base + path), function(childPath) {
+    var isDir = path.charAt(path.length - 1) === '/';
+    if (isDir) {
+      var folder = zip.folder(childPath.slice(0, -1));
       buildData(folder, base + path, childPath);
-    });
-  } else {
-    zip.file(path, JSON.stringify(remoteStorage.root.getObject(base + path)));
-  }
+    } else {
+      zip.file(path, JSON.stringify(remoteStorage.root.getObject(base + path)));
+    }
+  });
   return zip;
 }
 
