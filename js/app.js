@@ -89,7 +89,7 @@ $(function() {
   });
 
   $download.click(function() {
-    $.post('download', getData());
+    //TODO: implement download
   });
 
   $leave.click(function() {
