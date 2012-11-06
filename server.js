@@ -1,7 +1,8 @@
 var fs = require('fs');
 var _ = require('underscore');
+var JSZip = require('node-zip');
 //TODO: fix this in remoteStorage.js
-global.require = require;
+// global.require = require;
 var express = require('express');
 var mongoose = require('mongoose');
 var cronJob = require('cron').CronJob;
@@ -213,22 +214,23 @@ function getRemoteData(optn) {
   remoteStorage.root.use('/');
   //TODO: fullSync needs to be faster
   remoteStorage.fullSync(function() {
-    optn.data = buildData({}, '', '/');
+    optn.data = buildData(new JSZip(), '', '/').generate();
     remoteStorage.flushLocal();
     optn.cb(optn);
   });
 }
 
-function buildData(data, base, path) {
+function buildData(zip, base, path) {
   var isDir = path.charAt(path.length - 1) === '/';
   if (isDir) {
-    data[path.slice(0, -1)] = _.reduce(remoteStorage.root.getListing(base + path), function(child, childPath) {
-      return buildData(child, base + path, childPath);
-    }, {});
+    var folder = zip.folder(path.slice(0, -1));
+    _.each(remoteStorage.root.getListing(base + path), function(childPath) {
+      buildData(folder, base + path, childPath);
+    });
   } else {
-    data[path] = remoteStorage.root.getObject(base + path);
+    zip.file(path, JSON.stringify(remoteStorage.root.getObject(base + path)));
   }
-  return data;
+  return zip;
 }
 
 function sendMail(optn) {
