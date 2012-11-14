@@ -3,7 +3,6 @@ var _ = require('underscore');
 var JSZip = require('node-zip');
 var express = require('express');
 var mongoose = require('mongoose');
-var cronJob = require('cron').CronJob;
 
 var remoteStorage = require('./remoteStorage-node-debug');
 
@@ -132,35 +131,6 @@ app.post('/leave', function(req, res) {
     });
   });
 });
-
-
-new cronJob('0 */1 * * *', function(){
-  sendUpdates('1');
-}).start();
-
-new cronJob('0 */4 * * *', function(){
-  sendUpdates('4');
-}).start();
-
-new cronJob('0 */12 * * *', function(){
-  sendUpdates('12');
-}).start();
-
-new cronJob('0 0 * * *', function(){
-  sendUpdates('24');
-}).start();
-
-new cronJob('0 0 0 0 2,4,6', function(){
-  sendUpdates('56');
-}).start();
-
-new cronJob('0 0 * * 0', function(){
-  sendUpdates('168');
-}).start();
-
-new cronJob('* * * * 0/2', function(){
-  sendUpdates('336');
-}).start();
 
 
 function match(data) {
