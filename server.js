@@ -151,25 +151,25 @@ app.post('/leave', function(req, res) {
 
 
 //only allow requests from SetCronJob
-var setCronJob = '10.66.17.22';
+// var setCronJob = '10.66.17.22';
 
 app.get('/cron', function(req, res) {
   console.log('ip: ', req.ip)
-  if (req.ip === setCronJob) {
+  // if (req.ip === setCronJob) {
     sendUpdates(req.query.interval);
     res.send(200);
-  } else {
-    res.send(403);
-  }
+  // } else {
+    // res.send(403);
+  // }
 });
 
 app.get('/reminder', function(req, res) {
-  if (req.ip === setCronJob) {
+  // if (req.ip === setCronJob) {
     remind('mail@jorin-vogel.com');
     res.send(200);
-  } else {
-    res.send(403);
-  }
+  // } else {
+    // res.send(403);
+  // }
 });
 
 
