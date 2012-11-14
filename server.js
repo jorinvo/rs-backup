@@ -241,9 +241,9 @@ function sendMail(optn) {
           filePath: 'path'
         }]
     }, function(error, response) {
-      fs.unlink(file, function (err) {
+      fs.unlink(path, function (err) {
         if (err) throw err;
-        console.log('successfully deleted ' + file);
+        console.log('successfully deleted ' + path);
       });
       if (error) {
         console.log('Send mail failure: ', error);
