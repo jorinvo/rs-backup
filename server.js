@@ -148,6 +148,7 @@ app.post('/leave', function(req, res) {
 
 app.get('/cron', function(req, res) {
   console.log('ip: ', req.ip)
+  console.log('\ninterval: ', req.query.interval)
   // if (req.ip === setCronJob) {
     sendUpdates(req.query.interval);
     res.send(200);
