@@ -223,7 +223,7 @@ function buildData(zip, base, path) {
 function sendMail(optn) {
   var d = new Date();
   var date = d.toDateString() + ' - ' + d.toLocaleTimeString();
-  //TODO: add directly unsubscribe link to mail
+  console.log('Send mail to ' + optn.user.mail)
   transport.sendMail({
       from: 'rs backup <remotestore.backup@gmail.com>',
       to: optn.user.mail,
@@ -238,7 +238,7 @@ function sendMail(optn) {
       }]
   }, function(error, response) {
     if (error) {
-      console.log('err: ', error);
+      console.log('Send mail failure: ', error);
     } else {
       console.log("Message sent: " + response.message);
     }
