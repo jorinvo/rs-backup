@@ -108,8 +108,20 @@ app.post('/download', function(req, res) {
   getRemoteData({
     user: req.body,
     cb: function(optn) {
-      res.download(optn.data, 'rs-backup-' + new Date().toGMTString() + '.zip', function(err) {
-        console.log((err ? 'download error: ' : 'download successfully!'), err);
+      var file = 'tmp/rs-backup-' + new Date().toGMTString() + '.zip';
+      fs.writeFile(file, optn.data, function(err) {
+        if (err) {
+          console.log('Error writing file to tmp/', err);
+          res.send(500);
+          return;
+        }
+        res.download(file, function(err) {
+          console.log((err ? 'download error: ' : 'download successfully!'), err);
+          fs.unlink(file, function (err) {
+            if (err) throw err;
+            console.log('successfully deleted ' + file);
+          });
+        });
       });
     }
   });
