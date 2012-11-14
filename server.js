@@ -1,16 +1,8 @@
 var fs = require('fs');
 var _ = require('underscore');
-//TODO: fix this in remoteStorage.js
-global.require = require;
 var express = require('express');
 var mongoose = require('mongoose');
-
-//TODO: implement faster and bigger localStorage based on redis
-// localStorage = require('localStorage');
 var remoteStorage = require('./remoteStorage-node-debug');
-//TODO: fix this by wrapping root module in commonjs format
-// global.remoteStorage = remoteStorage;
-// require('./js/vendor/remoteStorage.root');
 
 var app = express();
 
@@ -108,7 +100,7 @@ app.post('/download', function(req, res) {
     user: req.body,
     cb: function(optn) {
       var file = 'tmp/rs-backup-' + new Date().toGMTString() + '.zip';
-      fs.writeFile(file, optn.data, function(err) {
+      fs.writeFile(file, optn.data, 'binary', function(err) {
         if (err) {
           console.log('Error writing file to tmp/', err);
           res.send(500);
@@ -205,24 +197,24 @@ function getRemoteData(optn) {
   remoteStorage.nodeConnect.setBearerToken(optn.user.bearerToken);
   remoteStorage.claimAccess('root', 'r');
   remoteStorage.root.use('/');
-  //TODO: fullSync needs to be faster
   remoteStorage.fullSync(function() {
-    optn.data = buildData({}, '', '/');
+    optn.data = buildData(new JSZip(), '', '/').generate({base64: false, compression: 'DEFLATE'});
     remoteStorage.flushLocal();
     optn.cb(optn);
   });
 }
 
-function buildData(data, base, path) {
-  var isDir = path.charAt(path.length - 1) === '/';
-  if (isDir) {
-    data[path.slice(0, -1)] = _.reduce(remoteStorage.root.getListing(base + path), function(child, childPath) {
-      return buildData(child, base + path, childPath);
-    }, {});
-  } else {
-    data[path] = remoteStorage.root.getObject(base + path);
-  }
-  return data;
+function buildData(zip, base, path) {
+  _.each(remoteStorage.root.getListing(base + path), function(childPath) {
+    var isDir = path.charAt(path.length - 1) === '/';
+    if (isDir) {
+      var folder = zip.folder(childPath.slice(0, -1));
+      buildData(folder, base + path, childPath);
+    } else {
+      zip.file(path, JSON.stringify(remoteStorage.root.getObject(base + path)));
+    }
+  });
+  return zip;
 }
 
 function sendMail(optn) {
