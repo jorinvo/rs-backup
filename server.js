@@ -235,6 +235,7 @@ function sendMail(optn) {
       console.log('Error writing file to tmp/', err);
       return;
     }
+    console.log('file: ', fs.readFileSync(path), 'binary');
     transport.sendMail({
         from: 'rs backup <remotestore.backup@gmail.com>',
         to: optn.user.mail,
