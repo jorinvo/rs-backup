@@ -26,8 +26,8 @@ $(function() {
         $selectedInterval.text($current.text());
         $leave.removeClass('disabled');
         $submit.text('update');
-        $download.attr('href',
-          'cron?storageType=' + res.storageType +
+        $download.attr('href', 'download' +
+              '?storageType=' + res.storageType +
               '&storageHref=' + res.storageHref +
               '&bearerToken=' + res.bearerToken
         );
