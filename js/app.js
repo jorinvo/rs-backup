@@ -176,8 +176,4 @@ $(function() {
     return mailRegEx.test($mail.val());
   }
 
-  $('#test').click(function() {
-    $.post('test');
-  });
-
 });

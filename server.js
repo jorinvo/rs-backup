@@ -1,10 +1,16 @@
 var fs = require('fs');
 var _ = require('underscore');
-var JSZip = require('node-zip');
+//TODO: fix this in remoteStorage.js
+global.require = require;
 var express = require('express');
 var mongoose = require('mongoose');
 
+//TODO: implement faster and bigger localStorage based on redis
+// localStorage = require('localStorage');
 var remoteStorage = require('./remoteStorage-node-debug');
+//TODO: fix this by wrapping root module in commonjs format
+// global.remoteStorage = remoteStorage;
+// require('./js/vendor/remoteStorage.root');
 
 var app = express();
 
@@ -75,6 +81,7 @@ app.post('/lookup', function(req, res) {
 
 app.post('/update', function(req, res) {
   var data = req.body;
+  //TODO: validate data here
   User.findOne(match(data), function(err, doc) {
     var user = (doc === null) ? new User() : doc;
 
@@ -97,17 +104,13 @@ app.post('/update', function(req, res) {
 });
 
 app.post('/download', function(req, res) {
-  console.log('/download', req.body)
-  res.attachment();
-  res.type('.zip');
-  res.set('filename', 'rs-backup-' + new Date().toGMTString() + '.zip');
-  console.log('type:',res.get('Content-Type'))
-  console.log('name:',res.get('filename'))
+  console.log('/download: \n\n');
   getRemoteData({
     user: req.body,
     cb: function() {
-      console.log('data:',optn.data);
-      res.send(optn.data);
+      res.download(optn.data, 'rs-backup-' + new Date().toGMTString() + '.zip', function(err) {
+        console.log((err ? 'download error: ' : 'download successfully!'), err);
+      });
     }
   });
 });
@@ -170,12 +173,14 @@ function sendUpdates(interval) {
 
 function sendData(users) {
   interate(users, function(user, next) {
+    //TODO: zip data
     getRemoteData({
       user: user,
       cb: sendMail,
       next: next
     });
-    next();
+
+      next();
   });
 }
 
@@ -184,29 +189,30 @@ function getRemoteData(optn) {
   remoteStorage.nodeConnect.setBearerToken(optn.user.bearerToken);
   remoteStorage.claimAccess('root', 'r');
   remoteStorage.root.use('/');
+  //TODO: fullSync needs to be faster
   remoteStorage.fullSync(function() {
-    optn.data = buildData(new JSZip(), '', '/').generate();
+    optn.data = buildData({}, '', '/');
     remoteStorage.flushLocal();
     optn.cb(optn);
   });
 }
 
-function buildData(zip, base, path) {
-  _.each(remoteStorage.root.getListing(base + path), function(childPath) {
-    var isDir = path.charAt(path.length - 1) === '/';
-    if (isDir) {
-      var folder = zip.folder(childPath.slice(0, -1));
-      buildData(folder, base + path, childPath);
-    } else {
-      zip.file(path, JSON.stringify(remoteStorage.root.getObject(base + path)));
-    }
-  });
-  return zip;
+function buildData(data, base, path) {
+  var isDir = path.charAt(path.length - 1) === '/';
+  if (isDir) {
+    data[path.slice(0, -1)] = _.reduce(remoteStorage.root.getListing(base + path), function(child, childPath) {
+      return buildData(child, base + path, childPath);
+    }, {});
+  } else {
+    data[path] = remoteStorage.root.getObject(base + path);
+  }
+  return data;
 }
 
 function sendMail(optn) {
   var d = new Date();
   var date = d.toDateString() + ' - ' + d.toLocaleTimeString();
+  //TODO: add directly unsubscribe link to mail
   transport.sendMail({
       from: 'rs backup <remotestore.backup@gmail.com>',
       to: optn.user.mail,
