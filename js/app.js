@@ -93,7 +93,7 @@ $(function() {
       type: 'POST',
       url: '/download',
       data: getData(),
-      timeout: 100000,
+      timeout: 240000,
       success: function(file) {
         window.location = 'files/' + file;
       }
