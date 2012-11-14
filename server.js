@@ -234,7 +234,7 @@ function sendMail(optn) {
       generateTextFromHTML: true,
       attachments: [{
         fileName: 'rs-backup ' + date + '.zip',
-        contents: optn.data
+        contents: new Buffer(optn.data, 'binary')
       }]
   }, function(error, response) {
     if (error) {
