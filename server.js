@@ -99,6 +99,7 @@ app.post('/update', function(req, res) {
 app.post('/download', function(req, res) {
   getRemoteData({
     user: req.body,
+    jsZipSettings: {base64: false, compression: 'DEFLATE'},
     cb: function(optn) {
       var file = 'tmp/rs-backup-' + new Date().toGMTString() + '.zip';
       fs.writeFile(file, optn.data, 'binary', function(err) {
@@ -148,8 +149,6 @@ app.post('/leave', function(req, res) {
 
 app.get('/cron', function(req, res) {
   console.log('ip: ', req.ip)
-  console.log('\ninterval: ', req.query.interval)
-  console.log('\ntypeof interval: ', typeof req.query.interval)
   // if (req.ip === setCronJob) {
     sendUpdates(req.query.interval);
     res.send(200);
@@ -201,7 +200,7 @@ function getRemoteData(optn) {
   remoteStorage.claimAccess('root', 'r');
   remoteStorage.root.use('/');
   remoteStorage.fullSync(function() {
-    optn.data = buildData(new JSZip(), '', '/').generate({base64: false, compression: 'DEFLATE'});
+    optn.data = buildData(new JSZip(), '', '/').generate(optn.jsZipSettings);
     remoteStorage.flushLocal();
     optn.cb(optn);
   });
@@ -223,7 +222,8 @@ function buildData(zip, base, path) {
 function sendMail(optn) {
   var d = new Date();
   var date = d.toDateString() + ' - ' + d.toLocaleTimeString();
-  console.log('Send mail to ' + optn.user.mail)
+  console.log('Send mail to ' + optn.user.mail + '\nFilename: rs-backup ' + date + '.zip\n' );
+  // console.log(optn.data)
   transport.sendMail({
       from: 'rs backup <remotestore.backup@gmail.com>',
       to: optn.user.mail,
