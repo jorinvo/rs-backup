@@ -103,7 +103,7 @@ app.post('/update', function(req, res) {
   });
 });
 
-app.post('/download', function(req, res) {
+app.get('/download', function(req, res) {
   console.log('/download: \n\n');
   getRemoteData({
     user: req.body,
