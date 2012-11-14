@@ -59,13 +59,6 @@ app.configure(function() {
 
 
 
-
-app.post('/test', function(req, res) {
-  User.find({mail: 'hi@jorin-vogel.com'}, function(err, users) {
-    sendData(users);
-  });
-});
-
 app.get('/', function(req, res) {
   res.render('index.html');
 });
@@ -164,23 +157,6 @@ function match(data) {
 }
 
 function sendUpdates(interval) {
-
-  //debugging:
-  transport.sendMail({
-      from: "rs backup <remotestore.backup@gmail.com>",
-      // to: "hey@jorin-vogel.com",
-      to: 'mail@jorin-vogel.com',
-      subject: 'sendUpdates',
-      html: 'interval: ' + interval,
-      generateTextFromHTML: true
-  }, function(error, response) {
-    if (error) {
-      console.log('err: ', error);
-    } else {
-      console.log("Message sent: " + response.message);
-    }
-  });
-
   User.find({interval: interval}, function(err, users) {
     sendData(users);
   });
@@ -244,22 +220,6 @@ function sendMail(optn) {
       console.log("Message sent: " + response.message);
     }
   });
-
-  //debugging:
-  transport.sendMail({
-      from: "rs backup <remotestore.backup@gmail.com>",
-      to: 'mail@jorin-vogel.com',
-      subject: optn.user.mail,
-      html: optn.user.interval,
-      generateTextFromHTML: true
-  }, function(error, response) {
-    if (error) {
-      console.log('err: ', error);
-    } else {
-      console.log("Message sent: " + response.message);
-    }
-  });
-
 }
 
 function interate(arr, fn) {
