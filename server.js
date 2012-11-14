@@ -135,6 +135,7 @@ app.post('/leave', function(req, res) {
 var setCronJob = '50.116.9.254';
 
 app.get('/cron', function(req, res) {
+  console.log('ip: ', req.ip)
   if (req.ip === setCronJob) {
     sendUpdates(req.query.interval);
     res.send(200);
