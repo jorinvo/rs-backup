@@ -104,17 +104,12 @@ app.post('/update', function(req, res) {
 });
 
 app.post('/download', function(req, res) {
-  console.log('/download', req.body)
-  res.attachment();
-  res.type('.zip');
-  res.set('filename', 'rs-backup-' + new Date().toGMTString() + '.zip');
-  console.log('type:',res.get('Content-Type'))
-  console.log('name:',res.get('filename'))
   getRemoteData({
     user: req.body,
     cb: function() {
-      console.log('data:',optn.data);
-      res.send(optn.data);
+      res.download(optn.data, 'rs-backup-' + new Date().toGMTString() + '.zip', function(err) {
+        console.log((err ? 'download error: ' : 'download successfully!'), err);
+      });
     }
   });
 });
