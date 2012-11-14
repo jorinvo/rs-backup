@@ -222,7 +222,7 @@ function buildData(zip, base, path) {
 function sendMail(optn) {
   var d = new Date();
   var date = d.toDateString() + ' - ' + d.toLocaleTimeString();
-  var path = 'tmp/rs-backup ' + date '.zip';
+  var path = 'tmp/rs-backup ' + date + '.zip';
   console.log('Send attachment from ' + path + '\n');
   fs.writeFile(path, optn.data, 'binary', function(err) {
     if (err) {
