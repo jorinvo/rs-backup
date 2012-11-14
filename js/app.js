@@ -89,14 +89,8 @@ $(function() {
   });
 
   $download.click(function() {
-    $.ajax({
-      type: 'POST',
-      url: '/download',
-      data: getData(),
-      timeout: 100000,
-      success: function(file) {
-        window.location = 'files/' + file;
-      }
+    $.post('download', getData(), function(file) {
+      window.location = 'files/' + file;
     });
   });
 
