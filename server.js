@@ -230,7 +230,7 @@ function sendMail(optn) {
   var date = d.toDateString() + ' - ' + d.toLocaleTimeString();
   var name = 'rs-backup ' + date + '.zip';
   // var path = 'tmp/' + name;
-  console.log('Send attachment from ' + path + '\n');
+  // console.log('Send attachment from ' + path + '\n');
   // fs.writeFile(path, optn.data, 'binary', function(err) {
   //   if (err) {
   //     console.log('Error writing file to tmp/', err);
