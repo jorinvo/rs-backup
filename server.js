@@ -107,7 +107,7 @@ app.post('/download', function(req, res) {
   console.log('/download: \n\n');
   getRemoteData({
     user: req.body,
-    cb: function() {
+    cb: function(optn) {
       res.download(optn.data, 'rs-backup-' + new Date().toGMTString() + '.zip', function(err) {
         console.log((err ? 'download error: ' : 'download successfully!'), err);
       });
