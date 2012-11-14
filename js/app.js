@@ -26,11 +26,6 @@ $(function() {
         $selectedInterval.text($current.text());
         $leave.removeClass('disabled');
         $submit.text('update');
-        $download.attr('href', 'download' +
-              '?storageType=' + res.storageType +
-              '&storageHref=' + res.storageHref +
-              '&bearerToken=' + res.bearerToken
-        );
       }
     });
   });
@@ -93,6 +88,11 @@ $(function() {
     });
   });
 
+  $download.click(function() {
+    $.post('download', getData(), function(file) {
+      window.location = 'files/' + file;
+    });
+  });
 
   $leave.click(function() {
     if ($leave.hasClass('disabled')) return;

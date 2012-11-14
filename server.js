@@ -103,10 +103,9 @@ app.post('/update', function(req, res) {
   });
 });
 
-app.get('/download', function(req, res) {
-  console.log('/download: \n\n');
+app.post('/download', function(req, res) {
   getRemoteData({
-    user: req.query,
+    user: req.body,
     cb: function(optn) {
       var file = 'tmp/rs-backup-' + new Date().toGMTString() + '.zip';
       fs.writeFile(file, optn.data, function(err) {
@@ -115,15 +114,20 @@ app.get('/download', function(req, res) {
           res.send(500);
           return;
         }
-        res.download(file, function(err) {
-          console.log((err ? 'download error: ' : 'download successfully!'), err);
-          fs.unlink(file, function (err) {
-            if (err) throw err;
-            console.log('successfully deleted ' + file);
-          });
-        });
+        res.send(file);
       });
     }
+  });
+});
+
+app.get('/files/:file', function(req, res) {
+  var file = req.params.file;
+  res.download(file, function(err) {
+    console.log((err ? 'download error: ' : 'download successfully!'), err);
+    fs.unlink(file, function (err) {
+      if (err) throw err;
+      console.log('successfully deleted ' + file);
+    });
   });
 });
 
