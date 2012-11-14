@@ -3,6 +3,7 @@ var _ = require('underscore');
 var express = require('express');
 var mongoose = require('mongoose');
 var remoteStorage = require('./remoteStorage-node-debug');
+var JSZip = require('node-zip');
 
 var app = express();
 

@@ -9,7 +9,6 @@
     "express": "3.x",
     "ejs": "0.8.x",
     "mongoose": "3.3.x",
-    "localStorage": "1.0.x",
     "nodemailer": "0.3.x",
     "underscore": "1.4.x",
     "node-zip": "0.0.2"
