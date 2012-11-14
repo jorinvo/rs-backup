@@ -147,7 +147,7 @@ app.post('/leave', function(req, res) {
 
 
 //only allow requests from SetCronJob
-var setCronJob = '50.116.9.254';
+var setCronJob = '10.66.17.22';
 
 app.get('/cron', function(req, res) {
   console.log('ip: ', req.ip)
