@@ -114,14 +114,14 @@ app.post('/download', function(req, res) {
           res.send(500);
           return;
         }
-        res.send(file);
+        res.send(encodeURIComponent(file));
       });
     }
   });
 });
 
 app.get('/files/:file', function(req, res) {
-  var file = req.params.file;
+  var file = decodeURIComponent(req.params.file);
   res.download(file, function(err) {
     console.log((err ? 'download error: ' : 'download successfully!'), err);
     fs.unlink(file, function (err) {
