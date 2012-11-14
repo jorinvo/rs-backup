@@ -231,12 +231,12 @@ function sendMail(optn) {
   var name = 'rs-backup ' + date + '.zip';
   var path = 'tmp/' + name;
   console.log('Send attachment from ' + path + '\n');
-  fs.writeFile(path, optn.data, 'binary', function(err) {
-    if (err) {
-      console.log('Error writing file to tmp/', err);
-      return;
-    }
-    fs.stat(path, function(err,stats) {console.log('filesize: ',stats.size);});
+  // fs.writeFile(path, optn.data, 'binary', function(err) {
+  //   if (err) {
+  //     console.log('Error writing file to tmp/', err);
+  //     return;
+  //   }
+  //   fs.stat(path, function(err,stats) {console.log('filesize: ',stats.size);});
     transport.sendMail({
         from: 'rs backup <remotestore.backup@gmail.com>',
         to: optn.user.mail,
@@ -246,8 +246,9 @@ function sendMail(optn) {
           To change your settings go to <a href=\"http://rs-backup.herokuapp.com\">rs-backup.herokuapp.com</a>.",
         generateTextFromHTML: true,
         attachments: [{
+          contentType: 'application/zip;base64',
           fileName: name,
-          streamSource: fs.createReadStream(path)
+          contents: optn.data
         }]
     }, function(error, response) {
       // fs.unlink(path, function (err) {
@@ -261,7 +262,7 @@ function sendMail(optn) {
       }
     });
 
-  });
+  // });
 
 }
 
