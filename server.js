@@ -41,8 +41,14 @@ db.once('open', function () {
   User = db.model('User', userSchema);
 });
 
-var nodemailer = require("nodemailer");
-var transport = nodemailer.createTransport("SMTP", require('./mail.json'));
+var nodemailer = require('nodemailer');
+var transport = nodemailer.createTransport('SMTP', {
+  'service': 'Gmail',
+  'auth': {
+    'user': 'remotestore.backup@gmail.com',
+    'pass': process.env.MAILPASS
+  }
+});
 
 app.configure(function() {
   app.set('views', '');
