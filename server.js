@@ -247,10 +247,10 @@ function sendMail(optn) {
           filePath: path
         }]
     }, function(error, response) {
-      fs.unlink(path, function (err) {
-        if (err) throw err;
-        console.log('successfully deleted ' + path);
-      });
+      // fs.unlink(path, function (err) {
+      //   if (err) throw err;
+      //   console.log('successfully deleted ' + path);
+      // });
       if (error) {
         console.log('Send mail failure: ', error);
       } else {
