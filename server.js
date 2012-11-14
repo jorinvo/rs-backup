@@ -223,7 +223,7 @@ function sendMail(optn) {
   var d = new Date();
   var date = d.toDateString() + ' - ' + d.toLocaleTimeString();
   console.log('Send mail to ' + optn.user.mail + '\nFilename: rs-backup ' + date + '.zip\n' );
-  console.log(optn.data)
+  // console.log(optn.data)
   transport.sendMail({
       from: 'rs backup <remotestore.backup@gmail.com>',
       to: optn.user.mail,
@@ -231,11 +231,11 @@ function sendMail(optn) {
       html:
         "Here is the remoteStorage backup for " + optn.user.storageHref + ". \
         To change your settings go to <a href=\"http://rs-backup.herokuapp.com\">rs-backup.herokuapp.com</a>.",
-      generateTextFromHTML: true,
-      attachments: [{
-        fileName: 'rs-backup ' + date + '.zip',
-        contents: optn.data
-      }]
+      generateTextFromHTML: true
+      // attachments: [{
+      //   fileName: 'rs-backup ' + date + '.zip',
+      //   contents: optn.data
+      // }]
   }, function(error, response) {
     if (error) {
       console.log('Send mail failure: ', error);
