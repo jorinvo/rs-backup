@@ -26,6 +26,11 @@ $(function() {
         $selectedInterval.text($current.text());
         $leave.removeClass('disabled');
         $submit.text('update');
+        $download.attr('href',
+          'cron?storageType=' + res.storageType +
+              '&storageHref=' + res.storageHref +
+              '&bearerToken=' + res.bearerToken
+        );
       }
     });
   });
@@ -88,9 +93,6 @@ $(function() {
     });
   });
 
-  $download.click(function() {
-    $.get('download', getData());
-  });
 
   $leave.click(function() {
     if ($leave.hasClass('disabled')) return;
