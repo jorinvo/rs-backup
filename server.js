@@ -238,7 +238,7 @@ function sendMail(optn) {
           To change your settings go to <a href=\"http://rs-backup.herokuapp.com\">rs-backup.herokuapp.com</a>.",
         generateTextFromHTML: true,
         attachments: [{
-          filePath: 'path'
+          filePath: path
         }]
     }, function(error, response) {
       fs.unlink(path, function (err) {
