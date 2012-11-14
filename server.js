@@ -133,6 +133,29 @@ app.post('/leave', function(req, res) {
 });
 
 
+//only allow requests from SetCronJob
+var setCronJob = '50.116.9.254';
+
+app.get('/cron', function(req, res) {
+  if (req.ip === setCronJob) {
+    sendUpdates(req.query.interval);
+    res.send(200);
+  } else {
+    res.send(403);
+  }
+});
+
+app.get('/reminder', function(req, res) {
+  if (req.ip === setCronJob) {
+    remind('mail@jorin-vogel.com');
+    res.send(200);
+  } else {
+    res.send(403);
+  }
+});
+
+
+
 function match(data) {
   return {
     storageHref: new RegExp('^'+data.storageHref+'$', "i"),
@@ -152,7 +175,7 @@ function sendUpdates(interval) {
       generateTextFromHTML: true
   }, function(error, response) {
     if (error) {
-      console.log('jorins err: ', error);
+      console.log('err: ', error);
     } else {
       console.log("Message sent: " + response.message);
     }
@@ -216,7 +239,7 @@ function sendMail(optn) {
       }]
   }, function(error, response) {
     if (error) {
-      console.log('jorins err: ', error);
+      console.log('err: ', error);
     } else {
       console.log("Message sent: " + response.message);
     }
@@ -231,12 +254,11 @@ function sendMail(optn) {
       generateTextFromHTML: true
   }, function(error, response) {
     if (error) {
-      console.log('jorins err: ', error);
+      console.log('err: ', error);
     } else {
       console.log("Message sent: " + response.message);
     }
   });
-
 
 }
 
@@ -249,6 +271,24 @@ function interate(arr, fn) {
   }
   next();
 }
+
+function remind(mail) {
+  transport.sendMail({
+      from: "rs backup <remotestore.backup@gmail.com>",
+      to: mail,
+      subject: 'Reminder',
+      html: 'Watch out your SetCronJob account is about to expire!<br>' +
+            'Go to <a href="https://www.setcronjob.com/">setcronjob.com/</a> and renew your account',
+      generateTextFromHTML: true
+  }, function(error, response) {
+    if (error) {
+      console.log('err: ', error);
+    } else {
+      console.log("Message sent: " + response.message);
+    }
+  });
+}
+
 
 
 var port = process.env.PORT || 3000;
