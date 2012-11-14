@@ -229,7 +229,7 @@ function sendMail(optn) {
   var d = new Date();
   var date = d.toDateString() + ' - ' + d.toLocaleTimeString();
   var name = 'rs-backup ' + date + '.zip';
-  var path = 'tmp/' + name;
+  // var path = 'tmp/' + name;
   console.log('Send attachment from ' + path + '\n');
   // fs.writeFile(path, optn.data, 'binary', function(err) {
   //   if (err) {
@@ -246,7 +246,7 @@ function sendMail(optn) {
           To change your settings go to <a href=\"http://rs-backup.herokuapp.com\">rs-backup.herokuapp.com</a>.",
         generateTextFromHTML: true,
         attachments: [{
-          contentType: 'application/zip;base64',
+          contentType: 'application/zip',
           fileName: name,
           contents: optn.data
         }]
