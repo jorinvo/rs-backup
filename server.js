@@ -106,7 +106,7 @@ app.post('/update', function(req, res) {
 app.get('/download', function(req, res) {
   console.log('/download: \n\n');
   getRemoteData({
-    user: req.body,
+    user: req.query,
     cb: function(optn) {
       var file = 'tmp/rs-backup-' + new Date().toGMTString() + '.zip';
       fs.writeFile(file, optn.data, function(err) {
