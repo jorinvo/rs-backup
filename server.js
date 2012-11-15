@@ -105,10 +105,9 @@ app.post('/update', function(req, res) {
 app.post('/download', function(req, res) {
   getRemoteData({
     user: req.body,
-    jsZipSettings: {base64: false, compression: 'DEFLATE'},
     cb: function(optn) {
       var file = 'tmp/rs-backup-' + new Date().toGMTString() + '.zip';
-      fs.writeFile(file, optn.data, 'binary', function(err) {
+      fs.writeFile(file, optn.data, 'base64', function(err) {
         if (err) {
           console.log('Error writing file to tmp/', err);
           res.send(500);
