@@ -248,7 +248,7 @@ function sendMail(optn) {
         attachments: [{
           contentType: 'application/zip',
           fileName: name,
-          contents: new Buffer(optn.data, "base65")
+          contents: new Buffer(optn.data, "base64")
         }]
     }, function(error, response) {
       // fs.unlink(path, function (err) {
