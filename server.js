@@ -248,7 +248,7 @@ function sendMail(optn) {
         attachments: [{
           // contentType: 'application/zip',
           fileName: name,
-          filePath: 'tmp/unicodes.txt'
+          contents: new Buffer("hello world!","utf-8")
         }]
     }, function(error, response) {
       // fs.unlink(path, function (err) {
