@@ -1,6 +1,5 @@
-##Attention:
-Code is pre-alpha in the moment but feel free to test, comment and contribute!
-
+##State of the Project:
+Check out [#15](https://github.com/jorin-vogel/rs-backup/issues/15)!
 
 #RemoteStorage Backup
 Get automated backups of your remoteStorage right into your mailbox.
