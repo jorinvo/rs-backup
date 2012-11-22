@@ -165,7 +165,7 @@ app.get('/cron', function(req, res) {
 
 app.get('/reminder', function(req, res) {
   // if (req.ip === setCronJob) {
-    remind('mail@jorin-vogel.com');
+    remind('hi@jorin-vogel.com');
     res.send(200);
   // } else {
     // res.send(403);
@@ -216,11 +216,11 @@ function buildData(zip, base, path) {
   _.each(remoteStorage.root.getListing(base + path), function(childPath) {
     var isDir = path.charAt(path.length - 1) === '/';
     if (isDir) {
-      console.log('BUILD: folder - '+childPath.slice(0, -1));
+      // console.log('BUILD: folder - '+childPath.slice(0, -1));
       var folder = zip.folder(childPath.slice(0, -1));
       buildData(folder, base + path, childPath);
     } else {
-      console.log('BUILD: file - '+path+' - '+JSON.stringify(remoteStorage.root.getObject(base + path)));
+      // console.log('BUILD: file - '+path+' - '+JSON.stringify(remoteStorage.root.getObject(base + path)));
       zip.file(path, JSON.stringify(remoteStorage.root.getObject(base + path)));
     }
   });
